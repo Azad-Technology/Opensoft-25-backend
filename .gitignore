@@ -1,0 +1,51 @@
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Log files and temporary files
+*.log
+*.tmp
+*.bak
+uvicorn.log
+
+# Dependency directories
+node_modules/
+vendor/
+
+# Build output directories
+dist/
+build/
+out/
+
+# Environment and configuration files
+.env
+
+# IDE and editor settings
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Miscellaneous
+coverage/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.cache
+*.egg-info/
+
+# Virtual environment directories
+venv/
+.venv/
+ENV/
+env/
+
+
+
+
