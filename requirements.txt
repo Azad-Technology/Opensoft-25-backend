@@ -8,6 +8,7 @@ pydantic-settings==2.7.0
 pydantic_core==2.27.1
 rich==13.9.4
 pytz==2025.1
+langsmith==0.3.11
 
 
 openai==1.66.3

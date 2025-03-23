@@ -1,12 +1,12 @@
 import pandas as pd
 
 # Load all datasets
-vibemeter_df = pd.read_csv('vibemeter_dataset.csv')
-rewards_df = pd.read_csv('rewards_dataset.csv')
-performance_df = pd.read_csv('performance_dataset.csv')
-onboarding_df = pd.read_csv('onboarding_dataset.csv')
-leave_df = pd.read_csv('leave_dataset.csv')
-activity_df = pd.read_csv('activity_tracker_dataset.csv')
+vibemeter_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/vibemeter_dataset.csv')
+rewards_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/rewards_dataset.csv')
+performance_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/performance_dataset.csv')
+onboarding_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/onboarding_dataset.csv')
+leave_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/leave_dataset.csv')
+activity_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/activity_tracker_dataset.csv')
 
 # Convert date columns to datetime
 date_columns = {
@@ -57,7 +57,7 @@ def create_employee_time_series():
 # Create time series data
 employee_time_series = create_employee_time_series()
 
-def get_employee_profile(employee_id):
+async def get_employee_profile(employee_id):
     profile = employee_time_series[employee_time_series['Employee_ID'] == employee_id]
     if profile.empty:
         return f"No data found for Employee {employee_id}"
@@ -108,7 +108,8 @@ def get_employee_profile(employee_id):
 
     return summary
 
-# Get profile for a specific employee
-sample_employee = 'EMP0454'
-print("\nSample Profile:")
-print(get_employee_profile(sample_employee))
+if __name__ == "__main__":
+    
+    # Get profile for a specific employee
+    sample_employee = 'EMP0454'
+    print(get_employee_profile(sample_employee))

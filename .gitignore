@@ -169,4 +169,6 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-ta-lib-0.6.4
+
+
+opensoft_25_backend.egg-info
