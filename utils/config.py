@@ -20,9 +20,10 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY1: Optional[str] = os.getenv("GOOGLE_API_KEY1")
     GOOGLE_API_KEY2: Optional[str] = os.getenv("GOOGLE_API_KEY2")
     
-    class Config:
-        env_file = ".env"
-
+    ENC_SECRET_KEY: Optional[str] = os.getenv("ENC_SECRET_KEY")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60*48
+    
+    
 settings = Settings()
 
 # Create database clients using the updated settings

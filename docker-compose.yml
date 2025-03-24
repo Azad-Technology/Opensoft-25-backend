@@ -1,0 +1,22 @@
+services:
+  backend:
+    image: backend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend
+    ports:
+      - "8569:8569"
+    volumes:
+      - .:/app
+    networks:
+      - app-network
+    environment:
+      - ENV=development
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+
+networks:
+  app-network:
+    driver: bridge

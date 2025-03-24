@@ -70,8 +70,8 @@ Review the following information and generate the next appropriate question:
 Current Context:
 {context}
 
-Current Context:
-{intent_data}
+Required Information:
+{required_info}
 
 Conversation History:
 {chat_history}

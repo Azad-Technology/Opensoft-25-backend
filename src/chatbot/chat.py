@@ -1,7 +1,7 @@
 import json
 import random
 from utils.config import get_async_database
-from src.chatbot.models import get_model
+from src.chatbot.llm_models import get_model
 from typing import Dict, List, Optional
 from datetime import datetime, timezone
 from utils.app_logger import setup_logger
@@ -177,7 +177,7 @@ async def generate_next_question(
             "role": "user",
             "content": QUESTION_GENERATION_PROMPT.format(
                 context=json.dumps(intent_data, indent=2),
-                intent_data=json.dumps(required_info, indent=2),
+                required_info=json.dumps(required_info, indent=2),
                 chat_history=json.dumps(chat_history, indent=2)
             )
         })
@@ -259,7 +259,7 @@ async def chat_complete(employee_id: str, session_id: str, message: str) -> Dict
             question = await generate_next_question(
                 intent_data,
                 [],  # Empty chat history for first question
-                intent_data
+                intent_data["required_information"]
             )
             
             await save_to_chat_history(employee_id, session_id, "assistant", question)
