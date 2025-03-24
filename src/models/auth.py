@@ -8,6 +8,7 @@ class UserCreate(BaseModel):
     password: str
     name: str
     role: str = "employee"  # default role
+    employee_id: str
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -17,4 +18,5 @@ class UserResponse(BaseModel):
     email: EmailStr
     name: str
     role: str
+    employee_id: str
     created_at: datetime

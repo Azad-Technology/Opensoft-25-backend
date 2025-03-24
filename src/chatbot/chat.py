@@ -15,9 +15,12 @@ from src.chatbot.system_prompts import (
     RESPONSE_ANALYSIS_PROMPT
 )
 
-
 logger = setup_logger("src/chatbot/chat.py")
 async_db = get_async_database()
+groq_model = get_model()
+google_model = get_model(model_provider="GEMINI")
+Model = "gemini-2.0-flash"
+chat_model = google_model
 
 async def get_chat_history(session_id: str) -> List:
     """
@@ -30,6 +33,14 @@ async def get_chat_history(session_id: str) -> List:
             {"_id": 0}
         ).sort("timestamp", 1).to_list(length=None)
         
+        if not chat_history:
+            return []
+        
+        for chat in chat_history:
+            print(chat)
+            if chat["role"] == "assistant":
+                chat["message"] = f'Question - {chat["message"]["question"]}, Intent - {chat["message"]["intent"]}' if chat["message"] else "No message"                
+                
         return chat_history
     except Exception as e:
         logger.error(f"Error retrieving chat history: {str(e)}")
@@ -80,7 +91,7 @@ async def get_intent_data(session_id: str) -> Dict:
         collection = async_db.intent_data
         intent_data = await collection.find_one(
             {"session_id": session_id},
-            {"_id": 0, "intent_data": 1}
+            {"_id": 0, "intent_data": 1, "updated_at": 0}
         )
         return intent_data.get("intent_data", {}) if intent_data else {}
     except Exception as e:
@@ -123,11 +134,9 @@ async def get_conversation_status(session_id: str) -> str:
 
 
 async def extract_intent_from_employee(employee_profile):
-    try:
-        groq_model = get_model()
-        
-        response = groq_model.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+    try:        
+        response = chat_model.chat.completions.create(
+            model=Model,
             messages=[
                 {"role": "system", "content": INTENT_ANALYSIS_SYSTEM_PROMPT},
                 {"role": "user", "content": INTENT_EXTRACTION_PROMPT.format(profile=employee_profile)}
@@ -182,15 +191,14 @@ async def generate_next_question(
             )
         })
         
-        groq_model = get_model()
-        response = groq_model.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+        response = chat_model.chat.completions.create(
+            model=Model,
             messages=messages,
             temperature=0.4,
             response_format={ "type": "json_object" }  # Add this to ensure JSON response
         )
         
-        return response.choices[0].message.content
+        return json.loads(response.choices[0].message.content)
 
     except Exception as e:
         logger.error(f"Error in question generation: {str(e)}")
@@ -227,9 +235,8 @@ async def analyze_response(
             )
         })
 
-        groq_model = get_model()
-        response = groq_model.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+        response = chat_model.chat.completions.create(
+            model=Model,
             messages=messages,
             temperature=0.7,
             response_format={ "type": "json_object" }  # Add this to ensure JSON response
@@ -248,8 +255,9 @@ async def chat_complete(employee_id: str, session_id: str, message: str) -> Dict
     """
     try:
         # Get chat history
+        print(f"Session ID: {session_id}")
         chat_history = await get_chat_history(session_id)
-        
+        print(f"Chat History: {chat_history}")
         # If new conversation
         if not chat_history:
             employee_profile = await get_employee_profile(employee_id)
@@ -298,11 +306,14 @@ async def chat_complete(employee_id: str, session_id: str, message: str) -> Dict
     
     
 if __name__ == "__main__":
-    import asyncio
-    # Example usage
-    session_id = random.randint(1000, 9999) 
-    message = "I am feeling overwhelmed with my workload."
-    employee_id = 'EMP0454'
     
-    response = asyncio.run(chat_complete(employee_id, session_id, message))
-    print(response)
+    
+    import asyncio
+    asyncio.run(get_chat_history("1742832471.228664"))
+    # # Example usage
+    # session_id = random.randint(1000, 9999) 
+    # message = "I am feeling overwhelmed with my workload."
+    # employee_id = 'EMP0454'
+    
+    # response = asyncio.run(chat_complete(employee_id, session_id, message))
+    # print(response)

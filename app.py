@@ -1,20 +1,7 @@
 from datetime import datetime
 from fastapi.responses import HTMLResponse
 import pytz
-from utils.api_key_rotate import APIKeyManager
-from utils.config import settings
-
-groq_api_manager = APIKeyManager(
-    api_keys=[settings.GROQ_API_KEY1, settings.GROQ_API_KEY2],
-    rate_limit=30,
-    cooldown_period=60
-)
-
-google_api_manager = APIKeyManager(
-    api_keys=[settings.GOOGLE_API_KEY1, settings.GOOGLE_API_KEY2],
-    rate_limit=10,
-    cooldown_period=60
-)
+import src.runner
 
 
 from fastapi import FastAPI
@@ -31,8 +18,10 @@ app.add_middleware(
 )
 
 from src.routers.auth import router as auth_router
+from src.routers.chat import router as chat_router
 
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+app.include_router(chat_router, prefix="/chat", tags=["Chat"])
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():

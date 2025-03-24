@@ -1,5 +1,5 @@
 from langsmith.wrappers import wrap_openai
-from app import groq_api_manager, google_api_manager
+from src.runner import groq_api_manager, google_api_manager
 from openai import OpenAI
 
 def get_model(model_provider: str  = "GROQ"):

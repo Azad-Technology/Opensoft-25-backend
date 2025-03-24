@@ -1,31 +1,31 @@
 import pandas as pd
 
-# Load all datasets
-vibemeter_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/vibemeter_dataset.csv')
-rewards_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/rewards_dataset.csv')
-performance_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/performance_dataset.csv')
-onboarding_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/onboarding_dataset.csv')
-leave_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/leave_dataset.csv')
-activity_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/activity_tracker_dataset.csv')
-
-# Convert date columns to datetime
-date_columns = {
-    'vibemeter_df': 'Response_Date',
-    'rewards_df': 'Award_Date',
-    'onboarding_df': 'Joining_Date',
-    'leave_df': ['Leave_Start_Date', 'Leave_End_Date'],
-    'activity_df': 'Date'
-}
-
-for df_name, columns in date_columns.items():
-    df = globals()[df_name]
-    if isinstance(columns, list):
-        for col in columns:
-            df[col] = pd.to_datetime(df[col])
-    else:
-        df[columns] = pd.to_datetime(df[columns])
-
 def create_employee_time_series():
+    # Load all datasets
+    vibemeter_df = pd.read_csv('src/analysis/data/vibemeter_dataset.csv')
+    rewards_df = pd.read_csv('src/analysis/data/rewards_dataset.csv')
+    performance_df = pd.read_csv('src/analysis/data/performance_dataset.csv')
+    onboarding_df = pd.read_csv('src/analysis/data/onboarding_dataset.csv')
+    leave_df = pd.read_csv('src/analysis/data/leave_dataset.csv')
+    activity_df = pd.read_csv('src/analysis/data/activity_tracker_dataset.csv')
+
+    # Convert date columns to datetime
+    date_columns = {
+        'vibemeter_df': 'Response_Date',
+        'rewards_df': 'Award_Date',
+        'onboarding_df': 'Joining_Date',
+        'leave_df': ['Leave_Start_Date', 'Leave_End_Date'],
+        'activity_df': 'Date'
+    }
+
+    for df_name, columns in date_columns.items():
+        df = globals()[df_name]
+        if isinstance(columns, list):
+            for col in columns:
+                df[col] = pd.to_datetime(df[col])
+        else:
+            df[columns] = pd.to_datetime(df[columns])
+    
     # Create a list of all dataframes with their timestamp columns
     dfs = [
         (vibemeter_df, 'Response_Date'),
@@ -54,10 +54,11 @@ def create_employee_time_series():
 
     return all_data
 
-# Create time series data
-employee_time_series = create_employee_time_series()
-
 async def get_employee_profile(employee_id):
+    
+    # Create time series data
+    employee_time_series = create_employee_time_series()
+    
     profile = employee_time_series[employee_time_series['Employee_ID'] == employee_id]
     if profile.empty:
         return f"No data found for Employee {employee_id}"
