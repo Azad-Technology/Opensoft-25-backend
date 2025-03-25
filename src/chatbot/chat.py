@@ -5,7 +5,7 @@ from src.chatbot.llm_models import get_model
 from typing import Dict, List, Optional
 from datetime import datetime, timezone
 from utils.app_logger import setup_logger
-from src.analysis.data_sample import get_employee_profile
+from src.analysis.data_sample import create_employee_profile
 from src.chatbot.system_prompts import (
     INTENT_ANALYSIS_SYSTEM_PROMPT,
     INTENT_EXTRACTION_PROMPT,
@@ -260,7 +260,7 @@ async def chat_complete(employee_id: str, session_id: str, message: str) -> Dict
         print(f"Chat History: {chat_history}")
         # If new conversation
         if not chat_history:
-            employee_profile = await get_employee_profile(employee_id)
+            employee_profile = await create_employee_profile(employee_id)
             intent_data = await extract_intent_from_employee(employee_profile)
             await save_intent_data(employee_id, session_id, intent_data)
             
@@ -309,11 +309,11 @@ if __name__ == "__main__":
     
     
     import asyncio
-    asyncio.run(get_chat_history("1742832471.228664"))
+    # asyncio.run(get_chat_history("1742832471.228664"))
     # # Example usage
-    # session_id = random.randint(1000, 9999) 
-    # message = "I am feeling overwhelmed with my workload."
-    # employee_id = 'EMP0454'
+    session_id = random.randint(1000, 9999) 
+    message = "I am feeling overwhelmed with my workload."
+    employee_id = 'EMP0454'
     
-    # response = asyncio.run(chat_complete(employee_id, session_id, message))
-    # print(response)
+    response = asyncio.run(chat_complete(employee_id, session_id, message))
+    print(response)

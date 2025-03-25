@@ -163,3 +163,78 @@ Output JSON Format:
     "conversation_complete": boolean
 }}
 """
+
+
+QUESTION_BANK_TAGGING_PROMPT = """You are a helpful assistant designed to analyze questions and identify potential underlying issues based on a predefined set of tags.  Your task is to analyze the provided question and determine which of the given tags are most relevant. The tags represent potential employee concerns or positive attributes.
+
+**Duty to Perform:**
+
+For each question provided, analyze the question and assign the most relevant tags from the provided list.  Consider the potential responses an employee might give to the question, and what issues those responses might reveal. Your goal is to identify the tags that represent the *underlying issues or positive aspects* the question is likely to uncover.
+
+**Output Format:**
+
+Your output MUST be in strict JSON format as follows:
+
+```json
+{
+  "question": "The text of the question I am giving you",
+  "tags": ["tag1", "tag2", ...]
+}
+```
+
+-  `question`:  This field should contain the exact, original question text provided as input.
+-  `tags`: This field should be a JSON array (list) of strings.  Each string in the array must be one of the tags from the `List of Tags` below.  Include *all* tags that are relevant. If no tags are applicable, use an empty array: `[]`.  Do *not* create any new tags. Do *not* include any explanations or additional text. Only the JSON.
+
+**List of Tags:**
+
+[
+    # Negative Tags
+    "Work_Overload_Stress",
+    "Lack_of_Engagement",
+    "Feeling_Undervalued",
+    "Career_Concerns",
+    "Workplace_Conflict",
+    "Social_Isolation",
+    "Lack_of_Work_Life_Balance",
+    "Recognition_Gap",
+    "Job_Satisfaction_Concerns",
+    "Performance_Pressure",
+    # Positive Tags
+    "Highly_Engaged_Employee",
+    "High_Performance_Contributor",
+    "Innovative_Problem_Solver",
+    "Strong_Team_Collaborator",
+    "Job_Satisfaction_Champion"
+]
+
+**Important Considerations:**
+
+* **Focus on Underlying Issues:**  The goal is to identify the *potential issues* that the question might reveal, not just the literal topic of the question.  Think about what an employee's *response* to the question might tell you about their situation and feelings.
+* **Multiple Tags:** A question can, and often should, have multiple tags.  Don't limit yourself to just one tag if multiple issues are relevant. Onl;y tag the most important, max - 3 tags, min - 1 tag.
+* **Positive and Negative:** Consider both negative (issue-related) and positive tags. A question can be designed to identify strengths.
+* **Strict JSON:**  Adhere strictly to the JSON format. No extra text, no explanations.
+* **Tag List Only:** Only use tags that are present in the List of Tags. Do NOT make up new tags.
+* **Empty Tags:** If there are no relevant tags, return `[]` for the `tags` field.
+* **Completeness**: It's very important to make sure that for the question, you tag all the possible issues (from the provided list) based on the potential response it could generate.
+
+**Example (Illustrative):**
+
+Here's an example of the expected input and output:
+
+**Input Question:** "How supported do you feel in balancing your professional goals with your current workload?"
+
+**Expected JSON Output:**
+
+```json
+{
+  "question": "How supported do you feel in balancing your professional goals with your current workload?",
+  "tags": [
+    "Lack_of_Work_Life_Balance",
+    "Career_Concerns",
+    "Work_Overload_Stress"
+  ]
+}
+```
+**Reasoning (for your understanding, do NOT include in output):** This question directly addresses work-life balance and workload.  An employee's response could easily reveal issues with excessive workload ("Work_Overload_Stress"), difficulties in achieving a healthy balance ("Lack_of_Work_Life_Balance"), and concerns about how workload impacts their career progression ("Career_Concerns").
+
+Now, analyze the following question and provide the output in the specified JSON format:"""
