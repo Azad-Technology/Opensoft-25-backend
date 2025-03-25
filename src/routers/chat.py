@@ -76,8 +76,12 @@ async def get_session_history(
                 status_code=404,
                 detail="Session not found"
             )
+            
+        chat_history = await async_db.chat_history.find(
+            {"session_id": session_id},
+            {"_id": 0}
+        ).sort("timestamp", 1).to_list(length=None)
 
-        chat_history = await get_chat_history(session_id)
         return {
             "session_id": session_id,
             "history": chat_history

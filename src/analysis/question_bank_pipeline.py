@@ -1,11 +1,20 @@
 from typing import List, Dict
 import json
 from utils.api_key_rotate import APIKeyManager
-from src.chatbot.llm_models import get_model
 from src.analysis.data.question_bank import question_bank 
 from utils.config import settings
 from src.chatbot.system_prompts import QUESTION_BANK_TAGGING_PROMPT
 from pathlib import Path
+from langsmith.wrappers import wrap_openai
+from openai import OpenAI
+
+
+def get_model(google_api_manager):
+    google_client = OpenAI(
+        api_key=google_api_manager.use_and_get_key(),
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+    )
+    return wrap_openai(google_client)
 
 def save_to_json(data: Dict, filename: str):
     """Save data to JSON file, appending if file exists"""
@@ -31,8 +40,10 @@ def save_to_json(data: Dict, filename: str):
     except Exception as e:
         print(f"Error saving to JSON: {e}")
 
-def tag_question(question: str, model_client) -> Dict:
+def tag_question(question, api_manager) -> Dict:
     try:
+        # Initialize model client
+        model_client = get_model(api_manager)
         response = model_client.chat.completions.create(
             model="gemini-2.0-flash",
             messages=[
@@ -53,17 +64,14 @@ def process_question_bank(question_bank: List[str], api_keys: List[str]):
     api_manager = APIKeyManager(
         api_keys=api_keys,
         model_name="gemini-2.0-flash",
-        rate_limit=10,
+        rate_limit=14,
         cooldown_period=60
     )
-    
-    # Initialize model client
-    model_client = get_model(model_provider="GEMINI")
     
     for idx, question in enumerate(question_bank, 1):
         try:
             # Get tags for the question
-            result = tag_question(question, model_client)
+            result = tag_question(question, api_manager)
             
             if result:
                 tagged_question = {
@@ -75,8 +83,7 @@ def process_question_bank(question_bank: List[str], api_keys: List[str]):
                 # Save each question result individually
                 save_to_json(tagged_question, "Opensoft-25-backend/src/analysis/data/tagged_questions.json")
                 print(f"Processed and saved question {idx}")
-                
-            break  # Remove this if you want to process all questions
+
             
         except Exception as e:
             print(f"Error processing question {idx}: {e}")
@@ -85,7 +92,7 @@ def process_question_bank(question_bank: List[str], api_keys: List[str]):
 if __name__ == "__main__":
     # Example usage:
     api_keys = [
-        settings.GOOGLE_API_KEY1, settings.GOOGLE_API_KEY2
+        settings.GOOGLE_API_KEY1, settings.GOOGLE_API_KEY2, settings.GOOGLE_API_KEY3, settings.GOOGLE_API_KEY4
     ]
 
     process_question_bank(question_bank, api_keys)

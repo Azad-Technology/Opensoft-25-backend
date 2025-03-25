@@ -27,19 +27,28 @@ async def get_chat_history(session_id: str) -> List:
     Retrieve chat history from MongoDB for a specific session
     """
     try:
-        collection = async_db.chat_history
-        chat_history = await collection.find(
+        if not session_id:
+            logger.error("Session ID is required to retrieve chat history.")
+            return []
+        
+        chat_history = await async_db.chat_history.find(
             {"session_id": session_id},
             {"_id": 0}
         ).sort("timestamp", 1).to_list(length=None)
         
-        if not chat_history:
-            return []
+        if not chat_history or len(chat_history) == 0:
+            return None
         
         for chat in chat_history:
-            print(chat)
+            chat.pop("timestamp", None)  # Remove timestamp for cleaner output
             if chat["role"] == "assistant":
                 chat["message"] = f'Question - {chat["message"]["question"]}, Intent - {chat["message"]["intent"]}' if chat["message"] else "No message"                
+                
+        # Append a user message at top
+        chat_history.insert(0, {
+            "role": "user",
+            "message": "Hi"
+        })
                 
         return chat_history
     except Exception as e:
@@ -88,12 +97,24 @@ async def get_intent_data(session_id: str) -> Dict:
     Retrieve intent data from MongoDB
     """
     try:
+        if not session_id:
+            logger.error("Session ID is required to retrieve intent data.")
+            return {}
+        
         collection = async_db.intent_data
+        # Modified query to only fetch intent_data
         intent_data = await collection.find_one(
             {"session_id": session_id},
-            {"_id": 0, "intent_data": 1, "updated_at": 0}
+            {"intent_data": 1, "_id": 0,}  # Only include intent_data, exclude _id
         )
-        return intent_data.get("intent_data", {}) if intent_data else {}
+        
+        if not intent_data:
+            logger.warning(f"No intent data found for session {session_id}")
+            return {}
+        
+            
+        return intent_data.get("intent_data", {})
+        
     except Exception as e:
         logger.error(f"Error retrieving intent data: {str(e)}")
         return {}
@@ -145,7 +166,6 @@ async def extract_intent_from_employee(employee_profile):
             response_format={ "type": "json_object" }  # Add this to ensure JSON response
         )
         raw_response = response.choices[0].message.content
-        
         # Attempt to parse JSON
         intent_data = json.loads(raw_response)
         
@@ -194,7 +214,7 @@ async def generate_next_question(
         response = chat_model.chat.completions.create(
             model=Model,
             messages=messages,
-            temperature=0.4,
+            temperature=0.65,
             response_format={ "type": "json_object" }  # Add this to ensure JSON response
         )
         
@@ -234,11 +254,13 @@ async def analyze_response(
                 intent_data=json.dumps(intent_data, indent=2)
             )
         })
+        
+        print(messages)
 
         response = chat_model.chat.completions.create(
             model=Model,
             messages=messages,
-            temperature=0.7,
+            temperature=0.65,
             response_format={ "type": "json_object" }  # Add this to ensure JSON response
         )
 
@@ -249,15 +271,14 @@ async def analyze_response(
         return None
 
 # Update chat_complete function to pass chat_history
-async def chat_complete(employee_id: str, session_id: str, message: str) -> Dict:
+async def chat_complete(employee_id: str, session_id: str = None, message: str = None) -> Dict:
     """
     Main chat function handling the conversation flow
     """
     try:
         # Get chat history
-        print(f"Session ID: {session_id}")
         chat_history = await get_chat_history(session_id)
-        print(f"Chat History: {chat_history}")
+        print(f"Chat history for session {session_id}: {chat_history}")
         # If new conversation
         if not chat_history:
             employee_profile = await create_employee_profile(employee_id)
@@ -286,6 +307,11 @@ async def chat_complete(employee_id: str, session_id: str, message: str) -> Dict
                 "response": "Thank you for sharing. I'll make sure to get this information to the right team.", 
                 "conversation_status": "complete"
             }
+            
+        chat_history.append({
+            "role": "user",
+            "message": message
+        })
 
         # Generate next question with updated chat history
         next_question = await generate_next_question(

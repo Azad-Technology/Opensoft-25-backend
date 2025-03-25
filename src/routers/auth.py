@@ -47,7 +47,7 @@ async def signup(user: UserCreate):
         logger.error(f"Error in signup: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail="An error occurred during signup"
+            detail=f"Error in signup: {str(e)}"
         )
 
 @router.post("/login")
@@ -58,14 +58,14 @@ async def login(user: UserLogin):
         if not db_user:
             raise HTTPException(
                 status_code=401,
-                detail="Incorrect email or password"
+                detail="Incorrect email"
             )
 
         # Verify password
         if not verify_password(user.password, db_user["password"]):
             raise HTTPException(
                 status_code=401,
-                detail="Incorrect email or password"
+                detail="Incorrect password"
             )
 
         # Create access token
@@ -79,7 +79,8 @@ async def login(user: UserLogin):
             "user": {
                 "email": db_user["email"],
                 "name": db_user["name"],
-                "role": db_user["role"]
+                "role": db_user["role"],
+                "employee_id": db_user.get("employee_id", None)
             }
         }
 
@@ -87,7 +88,7 @@ async def login(user: UserLogin):
         logger.error(f"Error in login: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail="An error occurred during login"
+            detail=f"Error in login: {str(e)}"
         )
 
 @router.get("/token")
@@ -125,5 +126,5 @@ async def get_access_token(current_user: dict = Depends(get_current_user)):
         logger.error(f"Error in get_access_token: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail="An error occurred while generating access token"
+            detail=f"Error in get_access_token: {str(e)}"
         )
