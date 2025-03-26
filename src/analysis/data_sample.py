@@ -64,6 +64,15 @@ async def create_employee_profile(employee_id: str) -> str:
             profile += f"Onboarding Feedback: {collections_data['onboarding']['Onboarding_Feedback']}\n"
             profile += f"Mentor Assigned: {collections_data['onboarding']['Mentor_Assigned']}\n"
             profile += f"Initial Training Completed: {collections_data['onboarding']['Initial_Training_Completed']}\n\n"
+            
+        # Vibe Meter Information
+        vibe_cursor = async_db.vibemeter.find({"Employee_ID": employee_id})
+        vibe_data = await vibe_cursor.to_list(length=None)
+        if vibe_data:
+            profile += "Vibe Meter Information:\n"
+            for record in vibe_data:
+                profile += f"Date: {record['Response_Date']}\n"
+                profile += f"Vibe Score: {record['Vibe_Score']}\n\n"
 
         # Performance Information
         if collections_data['performance']:
@@ -75,10 +84,39 @@ async def create_employee_profile(employee_id: str) -> str:
                 profile += f"Manager Feedback: {record['Manager_Feedback']}\n"
                 profile += f"Promotion Consideration: {record['Promotion_Consideration']}\n\n"
 
-        # Add other sections similarly...
-        # [Previous code for rewards, vibemeter, leave, and activity sections]
+        # Rewards Information
+        rewards_cursor = async_db.rewards.find({"Employee_ID": employee_id})
+        rewards_data = await rewards_cursor.to_list(length=None)
+        if rewards_data:
+            profile += "Rewards Information:\n"
+            for record in rewards_data:
+                profile += f"Date: {record['Award_Date']}\n"
+                profile += f"Award Type: {record['Award_Type']}\n"
+                profile += f"Reward Points: {record['Reward_Points']}\n\n"
 
-        logger.info(f"Successfully created profile for employee: {employee_id}")
+        # Leave Information
+        leave_cursor = async_db.leave.find({"Employee_ID": employee_id})
+        leave_data = await leave_cursor.to_list(length=None)
+        if leave_data:
+            profile += "Leave Information:\n"
+            for record in leave_data:
+                profile += f"Leave Type: {record['Leave_Type']}\n"
+                profile += f"Duration: {record['Leave_Days']} days\n"
+                profile += f"Period: {record['Leave_Start_Date']} to {record['Leave_End_Date']}\n\n"
+
+        # Activity Information
+        activity_cursor = async_db.activity.find({"Employee_ID": employee_id})
+        activity_data = await activity_cursor.to_list(length=None)
+        if activity_data:
+            profile += "Activity Information:\n"
+            for record in activity_data:
+                profile += f"Date: {record['Date']}\n"
+                profile += f"Teams Messages Sent: {record['Teams_Messages_Sent']}\n"
+                profile += f"Emails Sent: {record['Emails_Sent']}\n"
+                profile += f"Meetings Attended: {record['Meetings_Attended']}\n"
+                profile += f"Work Hours: {record.get('Work_Hours', 'N/A')}\n\n"
+
+        logger.info(f"Successfully created profile for employee: {employee_id} - {profile}")
         return profile
 
     except Exception as e:
@@ -97,15 +135,15 @@ async def get_employee_profile_json(employee_id: str) -> dict:
                 {"Employee_ID": employee_id},
                 {"_id": 0}
             ),
+            "vibemeter": await async_db.vibemeter.find(
+                {"Employee_ID": employee_id},
+                {"_id": 0}
+            ).to_list(length=None),
             "performance": await async_db.performance.find(
                 {"Employee_ID": employee_id},
                 {"_id": 0}
             ).to_list(length=None),
             "rewards": await async_db.rewards.find(
-                {"Employee_ID": employee_id},
-                {"_id": 0}
-            ).to_list(length=None),
-            "vibemeter": await async_db.vibemeter.find(
                 {"Employee_ID": employee_id},
                 {"_id": 0}
             ).to_list(length=None),

@@ -1,198 +1,166 @@
-# index.py
-import streamlit as st
-import asyncio
+import gradio as gr
+# Make sure this import path is correct for your project structure
+from src.chatbot.chat_bot import chat_complete
 import uuid
-import time # For debug
-from chat_bot import chat_complete
+import traceback # Import traceback for better error logging
 
-# --- Initialization ---
-st.set_page_config(page_title="Employee Chatbot", page_icon="💬", layout="wide")
-st.title("💬 Employee Chatbot")
+# Keep chat_with_bot async as it calls await chat_complete
+async def chat_with_bot(employee_id: str, message: str, session_id: str, history: list):
+    """Handles both starting a chat and submitting messages."""
+    print(f"--- chat_with_bot called ---") # Debug print
+    print(f"Employee ID: {employee_id}, Session ID: {session_id}, Message: '{message}'") # Debug print
 
-# Initialize session state variables if they don't exist
-default_session_id = str(uuid.uuid4())
-if "session_id" not in st.session_state:
-    st.session_state.session_id = default_session_id
-# if "messages" not in st.session_state: # Optional: Keep global history if needed
-#     st.session_state.messages = []
-if "current_messages" not in st.session_state:
-    st.session_state.current_messages = []
-if "employee_id" not in st.session_state:
-    st.session_state.employee_id = ""
-if "conversation_active" not in st.session_state:
-    st.session_state.conversation_active = False
-if "employee_id_input_key" not in st.session_state:
-     st.session_state.employee_id_input_key = "emp_id_" + str(uuid.uuid4())
-if "is_initializing_chat" not in st.session_state: # Flag to prevent double init
-     st.session_state.is_initializing_chat = False
+    # Initialize intent_data for return in case of early exit
+    intent_data_to_display = None
 
-print(f"\n--- Script Run Start {time.time()} ---")
-print(f"Session State: employee_id={st.session_state.employee_id}, active={st.session_state.conversation_active}, len(current_messages)={len(st.session_state.current_messages)}, initializing={st.session_state.is_initializing_chat}")
+    if not employee_id:
+        return history, session_id, "Please enter an Employee ID", intent_data_to_display # Return 4 values
 
+    if not session_id:
+        session_id = str(uuid.uuid4())
+        history = [] # Ensure history is cleared for a truly new session start
+        print(f"Generated new Session ID: {session_id}") # Debug print
 
-# --- Helper Functions ---
-def reset_conversation_state(new_employee_id):
-    """Resets state for a new conversation."""
-    print(f"Resetting conversation state for {new_employee_id}")
-    st.session_state.employee_id = new_employee_id
-    st.session_state.session_id = str(uuid.uuid4())
-    st.session_state.current_messages = []
-    st.session_state.conversation_active = True
-    st.session_state.is_initializing_chat = True # SET FLAG: We need to get the first message
+    is_initial_call = not message
 
-# --- Sidebar ---
-with st.sidebar:
-    st.header("Conversation Control")
-    employee_id_input = st.text_input(
-        "Enter Employee ID:",
-        key=st.session_state.employee_id_input_key,
-        value=st.session_state.get(st.session_state.employee_id_input_key, ""),
-        help="Enter the Employee ID and click 'Start Chat'"
-    )
+    try:
+        print(f"Calling chat_complete (Initial Call: {is_initial_call})...") # Debug print
+        response = await chat_complete(
+            employee_id=employee_id,
+            session_id=session_id,
+            message=message if not is_initial_call else None # Pass None for initial call
+        )
+        print(f"chat_complete response: {response}") # Debug print
 
-    if st.button("🚀 Start Chat", use_container_width=True):
-        print("Start Chat button clicked")
-        if employee_id_input:
-            if (st.session_state.employee_id != employee_id_input or
-                    not st.session_state.conversation_active):
-                reset_conversation_state(employee_id_input)
-                print("Triggering rerun after reset")
-                st.rerun() # Rerun to trigger the initialization logic below
-            # No need for the 'elif' case, clicking again on active chat is now harmless
-        else:
-            st.warning("Please enter an Employee ID.", icon="⚠️")
-            print("Start Chat clicked without Employee ID.")
+        if response is None:
+             history.append((message if message else None, "Error: Received None response from backend."))
+             # Return 4 values, intent_data is None here
+             return history, session_id, "An error occurred (None response)", intent_data_to_display
 
-    st.divider()
-    st.caption(f"Active Employee: {st.session_state.employee_id if st.session_state.employee_id else 'None'}")
-    st.caption(f"Session ID: {st.session_state.session_id}")
-    st.caption(f"Status: {'Active' if st.session_state.conversation_active else 'Inactive'}")
+        # --- Extract intent_data if available ---
+        # Use .get() to safely access intent_data, default to None if missing
+        intent_data_to_display = response.get("intent_data", None)
+        # -----------------------------------------
 
-# --- Main Chat Area ---
-print("Displaying current messages...")
-# Display messages first
-for message in st.session_state.current_messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-print(f"Displayed {len(st.session_state.current_messages)} messages.")
+        if "error" in response:
+            history.append((message if not is_initial_call else None, response["error"]))
+             # Return 4 values, intent_data might be None or potentially stale if error happened later
+            return history, session_id, f"An error occurred: {response['error']}", intent_data_to_display
 
+        bot_message = response.get("response", "Error: Missing 'response' key.")
+        conversation_status = response.get("conversation_status", "unknown")
 
-# --- Chat Logic ---
-print(f"Checking chat logic condition: employee_id='{st.session_state.employee_id}', active={st.session_state.conversation_active}")
-if st.session_state.employee_id and st.session_state.conversation_active:
+        if not is_initial_call:
+            history.append((message, None))
+        history.append((None, bot_message))
 
-    # 1. Handle Initial Bot Message ONLY if the flag is set
-    print(f"Checking initial message condition: initializing={st.session_state.is_initializing_chat}")
-    if st.session_state.is_initializing_chat:
-        print(f"--- Getting Initial Bot Message {time.time()} ---")
-        # Ensure messages are still empty, just in case.
-        if not st.session_state.current_messages:
-            with st.spinner("Initiating conversation..."):
-                try:
-                    print(f"Calling asyncio.run(chat_complete) for initial message...")
-                    response = asyncio.run(
-                        chat_complete(
-                            st.session_state.employee_id,
-                            st.session_state.session_id
-                        )
-                    )
-                    print(f"asyncio.run(chat_complete) for initial message DONE.")
+        status_message = ""
+        if conversation_status == "complete":
+            status_message = "Conversation completed. You can start a new session."
 
-                    if "error" in response:
-                        st.error(f"Error starting conversation: {response['error']}", icon="🚨")
-                        st.session_state.conversation_active = False # Stop conversation
-                        st.session_state.is_initializing_chat = False # Reset flag on error
-                        print(f"Error in initial message: {response['error']}")
-                        st.rerun() # Rerun to show error and update state
-                    else:
-                        assistant_msg = {"role": "assistant", "content": response["response"]}
-                        st.session_state.current_messages.append(assistant_msg)
-                        st.session_state.is_initializing_chat = False # CLEAR FLAG: Initialization done
-                        print(f"Initial message added. Clearing flag. Triggering rerun.")
-                        st.rerun() # Rerun to display the new message
+        print(f"Returning history (len={len(history)}), session_id, status: '{status_message}'") # Debug print
+        # Return 4 values including the extracted intent_data
+        return history, session_id, status_message, intent_data_to_display
 
-                except Exception as e:
-                    st.error(f"An unexpected error occurred: {e}", icon="🔥")
-                    st.session_state.conversation_active = False
-                    st.session_state.is_initializing_chat = False # Reset flag on exception
-                    print(f"EXCEPTION during initial message fetch: {e}")
-                    st.rerun() # Rerun to show error and update state
-        else:
-             # Messages already exist, shouldn't happen if logic is right, but reset flag just in case.
-             print("WARNING: is_initializing_chat was true, but messages already exist. Resetting flag.")
-             st.session_state.is_initializing_chat = False
-        print(f"--- Finished Initial Bot Message Block {time.time()} ---")
+    except Exception as e:
+        print(f"!!! Exception in chat_with_bot: {str(e)} !!!") # Debug print
+        traceback.print_exc() # Print full traceback for debugging
+        history.append((message if not is_initial_call else None, f"Error: {str(e)}"))
+         # Return 4 values, intent_data is None as error occurred
+        return history, session_id, f"An unexpected error occurred: {str(e)}", None
+
+# Function to handle the "Start Chat" button click - NO CHANGE NEEDED HERE
+# It calls chat_with_bot which now returns 4 values, the click handler handles outputs
+async def start_chat_handler(employee_id: str, current_history: list):
+    """Initiates a new chat session, getting the first bot message."""
+    print("--- start_chat_handler called ---") # Debug print
+    new_session_id = str(uuid.uuid4())
+    return await chat_with_bot(employee_id, "", new_session_id, []) # Pass empty history
+
+# Function to handle the "New Session" button click (remains synchronous)
+def start_new_session():
+    """Resets the UI for a new session."""
+    print("--- start_new_session called ---") # Debug print
+    new_session_id = str(uuid.uuid4())
+    # Return empty history, new session ID, empty status, interactive message box, AND None for intent data
+    return [], new_session_id, "", gr.Textbox(value="", label="Message", interactive=True), None # Return 5 values
 
 
-    # 2. Handle User Input and Bot Response (only if not initializing)
-    elif not st.session_state.is_initializing_chat: # Make sure init is finished
-        print("Setting up chat input...")
-        user_input = st.chat_input("Your response...", disabled=not st.session_state.conversation_active)
-        print(f"Chat input value: {'Set' if user_input else 'None'}")
+def create_chatbot_interface():
+    with gr.Blocks() as demo:
+        gr.Markdown("## Employee Chatbot")
 
-        if user_input:
-            print(f"--- Processing User Input {time.time()} ---")
-            # Add and display user message immediately
-            user_msg = {"role": "user", "content": user_input}
-            st.session_state.current_messages.append(user_msg)
-            # Display happens on the *next* rerun because of the structure
-            # To display immediately, uncomment below, but it might flash
-            # with st.chat_message("user"):
-            #    st.markdown(user_input)
-            print("User message added to state.")
+        with gr.Row():
+            employee_id = gr.Textbox(label="Employee ID")
+            session_id = gr.Textbox(label="Session ID", value=str(uuid.uuid4()), interactive=False)
 
+        chatbot = gr.Chatbot(label="Conversation")
+        msg = gr.Textbox(label="Message", placeholder="Type your message here...", interactive=True)
+        status = gr.Textbox(label="Status", interactive=False)
 
-            # Get and display bot response
-            with st.spinner("Thinking..."):
-                try:
-                    print(f"Calling asyncio.run(chat_complete) for user input...")
-                    response = asyncio.run(
-                        chat_complete(
-                            st.session_state.employee_id,
-                            st.session_state.session_id,
-                            user_input
-                        )
-                    )
-                    print(f"asyncio.run(chat_complete) for user input DONE.")
+        with gr.Row():
+            submit_btn = gr.Button("Submit")
+            new_session_btn = gr.Button("New Session")
+            # Removed start_chat_btn based on your provided code,
+            # assuming first interaction is now via Submit or Enter
+            # start_chat_btn = gr.Button("Start Chat")
 
-                    if "error" in response:
-                        st.error(f"Error getting response: {response['error']}", icon="🚨")
-                        print(f"Error in bot response: {response['error']}")
-                        # Let the error show, don't rerun automatically? Or rerun?
-                        # Consider if you want the user message removed on error
-                    else:
-                        assistant_msg = {"role": "assistant", "content": response["response"]}
-                        st.session_state.current_messages.append(assistant_msg)
-                        print("Assistant response added to state.")
+        # --- Add the JSON display component ---
+        intent_display = gr.JSON(label="Intent Data")
+        # --------------------------------------
 
-                        if response.get("conversation_status") == "complete":
-                            st.success("Conversation complete!", icon="✅")
-                            st.session_state.conversation_active = False
-                            print("Conversation complete. Set active=False.")
-                            # Rerun to disable input and show success
-                            st.rerun()
-                        else:
-                             # Rerun to display the new assistant message
-                             print("Conversation ongoing. Triggering rerun.")
-                             st.rerun()
+        # --- Event Handlers ---
 
+        # If you still need a "Start Chat" button, uncomment this and add the button back
+        # start_chat_btn.click(
+        #     fn=start_chat_handler,
+        #     inputs=[employee_id, chatbot],
+        #     outputs=[chatbot, session_id, status, intent_display] # Add intent_display to outputs
+        # )
 
-                except Exception as e:
-                    st.error(f"An unexpected error occurred while getting response: {e}", icon="🔥")
-                    print(f"EXCEPTION during bot response fetch: {e}")
-                    # Maybe deactivate?
-                    # st.session_state.conversation_active = False
-                    # st.rerun()
-            print(f"--- Finished User Input Processing Block {time.time()} ---")
+        # Submit message -> Calls chat_with_bot directly
+        submit_event = submit_btn.click(
+            fn=chat_with_bot,
+            inputs=[employee_id, msg, session_id, chatbot],
+            # --- Update outputs to include intent_display ---
+            outputs=[chatbot, session_id, status, intent_display],
+            # -----------------------------------------------
+            api_name="submit"
+        )
+        submit_event.then(
+            fn=lambda: gr.Textbox(value=""),
+            outputs=msg
+        )
 
-else:
-     print("Chat logic condition not met (No EmployeeID or Conversation Inactive).")
+        # Submit on Enter key press in the message box
+        msg.submit(
+             fn=chat_with_bot,
+             inputs=[employee_id, msg, session_id, chatbot],
+             # --- Update outputs to include intent_display ---
+             outputs=[chatbot, session_id, status, intent_display],
+             # -----------------------------------------------
+        ).then(
+             fn=lambda: gr.Textbox(value=""),
+             outputs=msg
+        )
 
+        # Start new session -> Calls start_new_session
+        new_session_btn.click(
+            fn=start_new_session,
+            inputs=[],
+            # --- Update outputs to include intent_display ---
+            outputs=[chatbot, session_id, status, msg, intent_display],
+            # ------------------------------------------------
+            api_name="new_session"
+        )
 
-# --- Instructions/Status ---
-if not st.session_state.employee_id:
-    st.info("Please enter an Employee ID in the sidebar and click 'Start Chat'.")
-elif not st.session_state.conversation_active and st.session_state.current_messages:
-     # Only show 'ended' message if it wasn't just an initialization error
-     if not st.session_state.is_initializing_chat:
-          st.info("Conversation ended. Enter the same or a new Employee ID and click 'Start Chat' to begin again.")
+    return demo
+
+demo = create_chatbot_interface() # You already have this instance
+
+if __name__ == "__main__":
+    # Make sure this instance is created before launching if not already done
+
+    print("Launching Gradio interface...")
+    demo.launch()
+    print("Gradio interface launched.")

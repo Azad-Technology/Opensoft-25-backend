@@ -8,7 +8,6 @@ from utils.app_logger import setup_logger
 from src.analysis.data_sample import create_employee_profile
 from src.chatbot.system_prompts import (
     INTENT_ANALYSIS_SYSTEM_PROMPT,
-    INTENT_EXTRACTION_PROMPT,
     QUESTION_GENERATION_SYSTEM_PROMPT,
     QUESTION_GENERATION_PROMPT,
     RESPONSE_ANALYSIS_SYSTEM_PROMPT,

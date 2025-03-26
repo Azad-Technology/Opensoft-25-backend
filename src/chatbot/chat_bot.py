@@ -356,9 +356,9 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             logger.info(f"[Session: {session_id}] Tag {current_tag} covered completely")
             intent_data["tags"][number]["completed"] = True
             number += 1
-        else:
-            logger.info(f"[Session: {session_id}] Updating tag summary for {current_tag}")
-            intent_data["tags"][number]["summary"] = analysis["tag_summary"]
+            
+        logger.info(f"[Session: {session_id}] Updating tag summary for {current_tag}")
+        intent_data["tags"][number]["summary"] = analysis["tag_summary"]
         
         # Check if conversation should end after analysis
         if (analysis["conversation_complete"] or 

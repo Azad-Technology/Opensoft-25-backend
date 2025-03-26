@@ -2,6 +2,8 @@ from datetime import datetime
 from fastapi.responses import HTMLResponse
 import pytz
 import src.runner
+import gradio as gr
+from src.chatbot.index import demo
 
 
 from fastapi import FastAPI
@@ -22,6 +24,8 @@ from src.routers.chat import router as chat_router
 
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 app.include_router(chat_router, prefix="/chat", tags=["Chat"])
+
+app = gr.mount_gradio_app(app, demo, path = "/gradio")
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
@@ -59,4 +63,4 @@ async def read_root():
 if __name__ == "__main__":
   # Include routers
   import uvicorn
-  uvicorn.run(app, host="0.0.0.0", port=8569, reload=True)
+  uvicorn.run(app, host="0.0.0.0", port=8569)
