@@ -2,7 +2,7 @@ import json
 import random
 from utils.config import get_async_database
 from src.chatbot.llm_models import get_model
-from typing import Dict, List, Optional
+from typing import Dict, List
 from datetime import datetime, timezone
 from utils.app_logger import setup_logger
 from src.analysis.data_sample import create_employee_profile
@@ -18,8 +18,8 @@ from src.chatbot.system_prompts import (
 logger = setup_logger("src/chatbot/chat.py")
 async_db = get_async_database()
 groq_model = get_model()
-google_model = get_model(model_provider="GEMINI")
-Model = "gemini-2.0-flash"
+google_model = get_model(model_provider="GROQ")
+Model = "llama-3.3-70b-versatile"
 chat_model = google_model
 
 async def get_chat_history(session_id: str) -> List:
@@ -152,7 +152,6 @@ async def get_conversation_status(session_id: str) -> str:
     except Exception as e:
         logger.error(f"Error retrieving conversation status: {str(e)}")
         return "new"
-
 
 async def extract_intent_from_employee(employee_profile):
     try:        
@@ -296,7 +295,6 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
 
         # Analyze employee response with chat history
         analysis = await analyze_response(
-            message,
             await get_intent_data(session_id),
             chat_history
         )
@@ -332,12 +330,10 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
     
     
 if __name__ == "__main__":
-    
-    
     import asyncio
     # asyncio.run(get_chat_history("1742832471.228664"))
     # # Example usage
-    session_id = random.randint(1000, 9999) 
+    session_id = "1742832471.228664"
     message = "I am feeling overwhelmed with my workload."
     employee_id = 'EMP0454'
     

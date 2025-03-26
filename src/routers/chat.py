@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 
 from pydantic import BaseModel
-from src.chatbot.chat import (
+from src.chatbot.chat_bot import (
     chat_complete,
     get_chat_history,
     get_conversation_status
@@ -32,9 +32,16 @@ async def start_chat(
     session_id: str = None
 ):
     try:
+        if session_id and not message.message:
+            raise HTTPException(
+                status_code=400,
+                detail="Message is required for existing session"
+            )
+        
         if not session_id:
             # Generate a new session ID
             session_id = str(datetime.now().timestamp())
+            message.message = None
         
         # Process the message
         response = await chat_complete(
@@ -77,10 +84,7 @@ async def get_session_history(
                 detail="Session not found"
             )
             
-        chat_history = await async_db.chat_history.find(
-            {"session_id": session_id},
-            {"_id": 0}
-        ).sort("timestamp", 1).to_list(length=None)
+        chat_history = await get_chat_history(session_id)
 
         return {
             "session_id": session_id,

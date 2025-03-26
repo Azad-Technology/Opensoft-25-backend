@@ -12,6 +12,8 @@ passlib==1.7.4
 python-jose==3.4.0
 pydantic[email]
 Faker==37.1.0
+streamlit==1.44.0
+nest-asyncio==1.6.0
 
 
 langsmith==0.3.11

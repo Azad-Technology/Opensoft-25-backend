@@ -59,4 +59,4 @@ async def read_root():
 if __name__ == "__main__":
   # Include routers
   import uvicorn
-  uvicorn.run(app, host="0.0.0.0", port=8569)
+  uvicorn.run(app, host="0.0.0.0", port=8569, reload=True)

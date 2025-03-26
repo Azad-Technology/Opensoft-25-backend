@@ -3,7 +3,7 @@ from src.runner import groq_api_manager, google_api_manager
 from openai import OpenAI
 
 def get_model(model_provider: str  = "GROQ"):
-    if model_provider in ["GROQ"]:  # Groq models
+    if model_provider in ["GROQ"]:
         groq_client=OpenAI(
             api_key=groq_api_manager.use_and_get_key(),
             base_url="https://api.groq.com/openai/v1",
