@@ -158,7 +158,7 @@ RESPONSE_ANALYSIS_SYSTEM_PROMPT += """\n
     *   **Loop Detected:** The conversation regarding the `current_tag` seems repetitive, with the employee not offering new insights despite different questions. Continuing is likely unproductive.
     *   **Set `tag_covered` to `false`** only if *none* of the above conditions are met *and* you believe asking another question (within the iteration and overall limits) is likely to yield significant clarification on the `current_tag`.
 3.  **Summarize Tag Responses (`tag_summary`):** Create a concise summary capturing the key points the employee expressed related *only* to the `current_tag` during the conversation turns dedicated to it.
-4.  **Determine Conversation Completion (`conversation_complete`):** Set `conversation_complete` to `true` **if and only if** `tag_covered` is `true` for the `current_tag` **AND** `is_last_tag` is `true`. Otherwise, set it to `false`.
+4.  **Determine Conversation Completion (`conversation_complete`):** Set `conversation_complete` to `true` if you are marking the last tag as covered or if the overall conversation is complete. Otherwise, set it to `false`.
 
 **Important Considerations:**
 

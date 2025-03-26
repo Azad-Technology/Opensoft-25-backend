@@ -17,10 +17,8 @@ from src.chatbot.system_prompts import (
 
 logger = setup_logger("src/chatbot/chat.py")
 async_db = get_async_database()
-groq_model = get_model()
-google_model = get_model(model_provider="GEMINI")
-Model = "gemini-2.0-flash"
-chat_model = google_model
+MODEL_PROVIDER = "GEMINI"
+MODEL_NAME = "gemini-2.0-flash"
 
 async def get_chat_history(session_id: str) -> List:
     logger.info(f"[Session: {session_id}] Fetching chat history")
@@ -139,8 +137,9 @@ async def get_conversation_status(session_id: str) -> str:
 async def extract_intent_from_employee(employee_profile, session_id: str):
     logger.info(f"[Session: {session_id}] Starting intent extraction from employee profile")
     try:        
+        chat_model = get_model(model_provider=MODEL_PROVIDER)
         response = chat_model.chat.completions.create(
-            model=Model,
+            model=MODEL_NAME,
             messages=[
                 {"role": "system", "content": INTENT_ANALYSIS_SYSTEM_PROMPT},
                 {"role": "user", "content": f"Analyze the following employee profile comprehensively and provide the output in the JSON format specified above: Employee Profile: {employee_profile}"}
@@ -223,8 +222,9 @@ async def generate_next_question(intent_data: Dict, chat_history: List, move_to_
         })
         
         logger.info(f"[Session: {session_id}] Calling LLM for question generation")
+        chat_model = get_model(model_provider=MODEL_PROVIDER)
         response = chat_model.chat.completions.create(
-            model=Model,
+            model=MODEL_NAME,
             messages=messages,
             temperature=0.65,
             response_format={ "type": "text" }
@@ -264,8 +264,9 @@ async def analyze_response(intent_data: Dict, chat_history: List, current_tag: s
         })
 
         logger.info(f"[Session: {session_id}] Calling LLM for response analysis")
+        chat_model = get_model(model_provider=MODEL_PROVIDER)
         response = chat_model.chat.completions.create(
-            model=Model,
+            model=MODEL_NAME,
             messages=messages,
             temperature=0.65,
             response_format={ "type": "json_object" }
@@ -336,7 +337,8 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             await save_conversation_status(session_id, "complete")
             return {
                 "response": "Thank you for sharing. I'll make sure to get this information to the right team.",
-                "conversation_status": "complete"
+                "conversation_status": "complete",
+                "intent_data": intent_data
             }
         
         # Save user message if conversation is continuing
@@ -351,14 +353,14 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             logger.error(f"[Session: {session_id}] Failed to analyze response")
             return {"error": "Failed to analyze response", "conversation_status": "error"}
         
+        logger.info(f"[Session: {session_id}] Updating tag summary for {current_tag} and number {number}")
+        intent_data["tags"][number]["summary"] = analysis["tag_summary"]
+        
         # Update tag status
         if analysis["tag_covered"]:
             logger.info(f"[Session: {session_id}] Tag {current_tag} covered completely")
             intent_data["tags"][number]["completed"] = True
             number += 1
-            
-        logger.info(f"[Session: {session_id}] Updating tag summary for {current_tag}")
-        intent_data["tags"][number]["summary"] = analysis["tag_summary"]
         
         # Check if conversation should end after analysis
         if (analysis["conversation_complete"] or 
@@ -368,7 +370,8 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             await save_intent_data(employee_id, session_id, intent_data)
             return {
                 "response": "Thank you for sharing. I'll make sure to get this information to the right team.",
-                "conversation_status": "complete"
+                "conversation_status": "complete",
+                "intent_data": intent_data
             }
 
         # Generate next question
