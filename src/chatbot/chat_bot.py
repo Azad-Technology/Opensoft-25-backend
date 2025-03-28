@@ -1,5 +1,5 @@
 import json
-import random
+from src.chatbot.mentors import mentor_chat_completion
 from src.database.graph_db import extract_questions
 from utils.config import get_async_database
 from src.chatbot.llm_models import get_model
@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from utils.app_logger import setup_logger
 from src.analysis.data_sample import create_employee_profile
 from src.chatbot.system_prompts import (
+    FINAL_CHAT_ANALYSIS_PROMPT,
     INTENT_ANALYSIS_SYSTEM_PROMPT,
     QUESTION_GENERATION_SYSTEM_PROMPT,
     QUESTION_GENERATION_PROMPT,
@@ -15,10 +16,10 @@ from src.chatbot.system_prompts import (
     RESPONSE_ANALYSIS_PROMPT
 )
 
-logger = setup_logger("src/chatbot/chat.py")
+logger = setup_logger("src/chatbot/chat_bot.py")
 async_db = get_async_database()
-MODEL_PROVIDER = "GEMINI"
-MODEL_NAME = "gemini-2.0-flash"
+MODEL_PROVIDER = "GROQ"
+MODEL_NAME = "llama-3.3-70b-versatile"
 
 async def get_chat_history(session_id: str) -> List:
     logger.info(f"[Session: {session_id}] Fetching chat history")
@@ -238,7 +239,7 @@ async def generate_next_question(intent_data: Dict, chat_history: List, move_to_
         logger.error(f"[Session: {session_id}] Error in question generation: {str(e)}")
         return None
 
-async def analyze_response(intent_data: Dict, chat_history: List, current_tag: str, session_id: str) -> Dict:
+async def analyze_response(intent_data: Dict, chat_history: List, current_tag: str, total_question: int, session_id: str) -> Dict:
     logger.info(f"[Session: {session_id}] Starting response analysis for tag: {current_tag}")
     try:
         messages = [{
@@ -259,7 +260,8 @@ async def analyze_response(intent_data: Dict, chat_history: List, current_tag: s
             "role": "user",
             "content": RESPONSE_ANALYSIS_PROMPT.format(
                 intent_data=json.dumps(intent_data, indent=2),
-                current_tag=current_tag
+                current_tag=current_tag,
+                total_question_number=total_question
             )
         })
 
@@ -278,6 +280,85 @@ async def analyze_response(intent_data: Dict, chat_history: List, current_tag: s
 
     except Exception as e:
         logger.error(f"[Session: {session_id}] Error in response analysis: {str(e)}")
+        return None
+    
+async def final_chat_analysis(session_id: str, chat_history, intent_data) -> Dict:
+    """
+    Analyze the complete chat history and provide final analysis with mentor recommendation
+    """
+    logger.info(f"[Session: {session_id}] Starting final chat analysis")
+    try:
+        
+        if not chat_history or not intent_data:
+            logger.error(f"[Session: {session_id}] Missing chat history or intent data for final analysis")
+            return None
+            
+        # Format conversation for analysis
+        formatted_conversation = {
+            "intent_data": intent_data,
+            "conversation_flow": [
+                {
+                    "role": chat["role"],
+                    "message": chat["message"]
+                } for chat in chat_history
+            ]
+        }
+        
+        # Prepare messages for LLM
+        messages = [
+            {
+                "role": "system",
+                "content": FINAL_CHAT_ANALYSIS_PROMPT
+            },
+            {
+                "role": "user",
+                "content": f"Analyze this conversation and provide recommendations: \n{json.dumps(formatted_conversation, indent=2)}"
+            }
+        ]
+        
+        logger.info(f"[Session: {session_id}] Calling LLM for final analysis")
+        chat_model = get_model(model_provider=MODEL_PROVIDER)
+        response = chat_model.chat.completions.create(
+            model=MODEL_NAME,
+            messages=messages,
+            temperature=0.7,
+            response_format={ "type": "json_object" }
+        )
+        
+        # Parse and validate response
+        try:
+            analysis_result = json.loads(response.choices[0].message.content)
+            
+            # Validate required fields
+            if not all(key in analysis_result for key in ["summary", "mentor_name"]):
+                raise ValueError("Missing required fields in analysis result")
+                
+            # Validate mentor name
+            valid_mentors = [
+                "productivity_and_balance_coach",
+                "carrer_navigator",
+                "collaboration_and_conflict_guide",
+                "performance_and_skills_enhancer",
+                "communication_catalyst",
+                "resilience_and_well_being_advocate",
+                "innovation_and_solutions_spark",
+                "workplace_engagement_ally",
+                "change_adaptation_advisor",
+                "leadership_foundations_guide"
+            ]
+            
+            if analysis_result["mentor_name"] not in valid_mentors:
+                raise ValueError(f"Invalid mentor name: {analysis_result['mentor_name']}")
+            
+            logger.info(f"[Session: {session_id}] Final analysis completed successfully")
+            return analysis_result
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"[Session: {session_id}] JSON parsing error in final analysis: {str(e)}")
+            return None
+            
+    except Exception as e:
+        logger.error(f"[Session: {session_id}] Error in final analysis: {str(e)}", exc_info=True)
         return None
 
 async def chat_complete(employee_id: str, session_id: str = None, message: str = None) -> Dict:
@@ -317,6 +398,14 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             logger.error(f"[Session: {session_id}] Failed to retrieve intent data")
             return {"error": "Failed to retrieve conversation context", "conversation_status": "error"}
         
+        if intent_data.get("is_mentor_assigned"):
+            logger.info(f"[Session: {session_id}] Mentor already assigned for this conversation")
+            return {
+                "response": await mentor_chat_completion(employee_id, intent_data, chat_history, session_id, message),
+                "conversation_status": "complete",
+                "intent_data": intent_data
+            }
+        
         # Check conversation limits before processing message
         total_questions = sum(1 for chat in chat_history if chat["role"] == "assistant")
         
@@ -335,20 +424,26 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             number >= len(intent_data["tags"])):
             logger.info(f"[Session: {session_id}] Conversation complete - Limits reached")
             await save_conversation_status(session_id, "complete")
+            final_analysis = await final_chat_analysis(session_id, chat_history, intent_data)
+            intent_data["is_mentor_assigned"] = True
+            intent_data["mentor_name"] = final_analysis["mentor_name"]
+            intent_data["chat_summary"] = final_analysis["summary"]
+            
+            await save_intent_data(employee_id, session_id, intent_data)
             return {
-                "response": "Thank you for sharing. I'll make sure to get this information to the right team.",
+                "response": f"Thank you for sharing. I'll make sure to get this information to the right team. After analyzing your conversation, I recommend you to talk to a {final_analysis['mentor_name']}. You can just say Hi to start the conversation with the mentor.",
                 "conversation_status": "complete",
                 "intent_data": intent_data
             }
         
-        # Save user message if conversation is continuing
+        # Save user message if conversation is ongoing
         if message is not None:
             await save_to_chat_history(employee_id, session_id, "user", message)
             # Update chat_history after saving new message
             chat_history = await get_chat_history(session_id)
-
+        
         # Analyze response
-        analysis = await analyze_response(intent_data, chat_history, current_tag, session_id)
+        analysis = await analyze_response(intent_data, chat_history, current_tag, total_questions, session_id)
         if not analysis:
             logger.error(f"[Session: {session_id}] Failed to analyze response")
             return {"error": "Failed to analyze response", "conversation_status": "error"}
@@ -363,13 +458,17 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             number += 1
         
         # Check if conversation should end after analysis
-        if (analysis["conversation_complete"] or 
-            number >= len(intent_data["tags"])):
+        if number >= len(intent_data["tags"]):
             logger.info(f"[Session: {session_id}] Conversation complete - Analysis based")
             await save_conversation_status(session_id, "complete")
+            final_analysis = await final_chat_analysis(session_id, chat_history, intent_data)
+            intent_data["is_mentor_assigned"] = True
+            intent_data["mentor_name"] = final_analysis["mentor_name"]
+            intent_data["chat_summary"] = final_analysis["summary"]
+            
             await save_intent_data(employee_id, session_id, intent_data)
             return {
-                "response": "Thank you for sharing. I'll make sure to get this information to the right team.",
+                "response": f"Thank you for sharing. I'll make sure to get this information to the right team. After analyzing your conversation, I recommend you to talk to a {final_analysis['mentor_name']}. You can just say Hi to start the conversation with the mentor.",
                 "conversation_status": "complete",
                 "intent_data": intent_data
             }
