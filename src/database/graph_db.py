@@ -38,7 +38,22 @@ class Neo4jUploader:
         with self.driver.session() as session:
             result = session.execute_read(self._query_questions_by_tag, tag)
             return result
-        
+    
+    def get_related_questions(self, node_id, threshold):
+        with self.driver.session() as session:
+            result = session.execute_read(self._query_related_questions, node_id, threshold)
+            return result
+
+    @staticmethod
+    def _query_related_questions(tx, node_id, threshold):
+        query = """
+        MATCH (q1:Question {id: $node_id})-[r:RELATED_TO]->(q2:Question)
+        WHERE r.score > $threshold
+        RETURN q2.id, q2.question, r.score
+        """
+        result = tx.run(query, node_id=node_id, threshold=threshold)
+        return [record for record in result]
+    
     #function to get questions based on tag , threshold_score , node_depth
 
     @staticmethod
@@ -80,7 +95,11 @@ if __name__ == "__main__":
 
     # Uploader
     uploader = Neo4jUploader(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)
-    uploader.upload_data(tagged_questions , question_relationships)
+    # uploader.upload_data(tagged_questions , question_relationships)  TO BE RUN ONCE
+
+    questions = uploader.get_related_questions(4 , 10)
+    print(len(questions))
+    print(questions)
     uploader.close()
     print("Data uploaded successfully!")
 
