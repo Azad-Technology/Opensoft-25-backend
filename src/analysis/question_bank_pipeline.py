@@ -157,14 +157,18 @@ def process_question_relationships(api_keys: List[str], batch_size: int = 50):
         api_keys=api_keys,
         model_name="gemini-2.5-pro-exp-03-25",
         rate_limit=2,
-        cooldown_period=60
+        cooldown_period=60,
+        day_limit=40
     )
 
     # Process each question as the primary question
     for i, primary_question in enumerate(tagged_questions):
-        # Skip already processed questions (those that appear as 'other_question' in previous comparisons)
-        if (i>5 or i<0):
+        
+        
+        # 4 is left 
+        if (i>10 or i<=3):
             continue
+        print(f"Processing relationships for question {i}")
         
         remaining_questions = tagged_questions[i + 1:]
         
