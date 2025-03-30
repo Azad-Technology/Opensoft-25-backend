@@ -22,7 +22,7 @@ class Neo4jUploader:
     def close(self):
         self.driver.close()
     
-    # To be run once
+    # To be run once: Uploads the entire data to neo4j
     def upload_data(self, data, relationships):
         with self.driver.session() as session:
             print('Uploading questions...')
@@ -43,6 +43,7 @@ class Neo4jUploader:
         with self.driver.session() as session:
             result = session.execute_read(self._query_related_questions, node_id, threshold)
             return result
+        
 
     @staticmethod
     def _query_related_questions(tx, node_id, threshold):
@@ -53,8 +54,22 @@ class Neo4jUploader:
         """
         result = tx.run(query, node_id=node_id, threshold=threshold)
         return [record for record in result]
-    
+
     #function to get questions based on tag , threshold_score , node_depth
+    '''
+        [
+            {
+                question :
+                related_questions: [
+                    {
+                        question: [
+                            related_questions : 
+                        ]
+                    }
+                ]
+            }
+        ]
+    '''
 
     @staticmethod
     def _query_questions_by_tag(tx, tag):
@@ -97,9 +112,8 @@ if __name__ == "__main__":
     uploader = Neo4jUploader(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)
     # uploader.upload_data(tagged_questions , question_relationships)  TO BE RUN ONCE
 
-    questions = uploader.get_related_questions(4 , 10)
+    questions = uploader.get_questions_by_tag('Workplace_Conflict')
     print(len(questions))
-    print(questions)
     uploader.close()
     print("Data uploaded successfully!")
 
