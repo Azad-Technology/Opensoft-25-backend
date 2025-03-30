@@ -9,6 +9,7 @@ from utils.app_logger import setup_logger
 from src.analysis.data_sample import create_employee_profile
 from src.chatbot.system_prompts import (
     FINAL_CHAT_ANALYSIS_PROMPT,
+    FINAL_CHAT_ANALYSIS_SYSTEM_PROMPT,
     INTENT_ANALYSIS_SYSTEM_PROMPT,
     QUESTION_GENERATION_SYSTEM_PROMPT,
     QUESTION_GENERATION_PROMPT,
@@ -18,8 +19,8 @@ from src.chatbot.system_prompts import (
 
 logger = setup_logger("src/chatbot/chat_bot.py")
 async_db = get_async_database()
-MODEL_PROVIDER = "GROQ"
-MODEL_NAME = "llama-3.3-70b-versatile"
+MODEL_PROVIDER = "GEMINI"
+MODEL_NAME = "gemini-2.0-flash"
 
 async def get_chat_history(session_id: str) -> List:
     logger.info(f"[Session: {session_id}] Fetching chat history")
@@ -45,7 +46,6 @@ async def get_chat_history(session_id: str) -> List:
 async def save_to_chat_history(employee_id: str, session_id: str, role: str, message: str) -> bool:
     logger.info(f"[Session: {session_id}] Saving message to chat history - Role: {role}")
     try:
-        collection = async_db.chat_history
         document = {
             "session_id": session_id,
             "employee_id": employee_id,
@@ -53,7 +53,7 @@ async def save_to_chat_history(employee_id: str, session_id: str, role: str, mes
             "message": message,
             "timestamp": datetime.now(timezone.utc)
         }
-        await collection.insert_one(document)
+        await async_db.chat_history.insert_one(document)
         logger.info(f"[Session: {session_id}] Successfully saved message to chat history")
         return True
     except Exception as e:
@@ -63,8 +63,7 @@ async def save_to_chat_history(employee_id: str, session_id: str, role: str, mes
 async def save_intent_data(employee_id: str, session_id: str, intent_data: Dict) -> bool:
     logger.info(f"[Session: {session_id}] Saving intent data for employee: {employee_id}")
     try:
-        collection = async_db.intent_data
-        await collection.update_one(
+        await async_db.intent_data.update_one(
             {"session_id": session_id, "employee_id": employee_id},
             {"$set": {
                 "intent_data": intent_data,
@@ -85,8 +84,7 @@ async def get_intent_data(session_id: str) -> Dict:
             logger.error("[Session: None] Session ID is required to retrieve intent data")
             return {}
         
-        collection = async_db.intent_data
-        intent_data = await collection.find_one(
+        intent_data = await async_db.intent_data.find_one(
             {"session_id": session_id},
             {"intent_data": 1, "_id": 0}
         )
@@ -105,8 +103,7 @@ async def get_intent_data(session_id: str) -> Dict:
 async def save_conversation_status(session_id: str, status: str) -> bool:
     logger.info(f"[Session: {session_id}] Saving conversation status: {status}")
     try:
-        collection = async_db.conversation_status
-        await collection.update_one(
+        await async_db.conversation_status.update_one(
             {"session_id": session_id},
             {"$set": {
                 "status": status,
@@ -123,8 +120,7 @@ async def save_conversation_status(session_id: str, status: str) -> bool:
 async def get_conversation_status(session_id: str) -> str:
     logger.info(f"[Session: {session_id}] Retrieving conversation status")
     try:
-        collection = async_db.conversation_status
-        status_doc = await collection.find_one(
+        status_doc = await async_db.conversation_status.find_one(
             {"session_id": session_id},
             {"_id": 0, "status": 1}
         )
@@ -295,7 +291,6 @@ async def final_chat_analysis(session_id: str, chat_history, intent_data) -> Dic
             
         # Format conversation for analysis
         formatted_conversation = {
-            "intent_data": intent_data,
             "conversation_flow": [
                 {
                     "role": chat["role"],
@@ -308,11 +303,11 @@ async def final_chat_analysis(session_id: str, chat_history, intent_data) -> Dic
         messages = [
             {
                 "role": "system",
-                "content": FINAL_CHAT_ANALYSIS_PROMPT
+                "content": FINAL_CHAT_ANALYSIS_SYSTEM_PROMPT
             },
             {
                 "role": "user",
-                "content": f"Analyze this conversation and provide recommendations: \n{json.dumps(formatted_conversation, indent=2)}"
+                "content": FINAL_CHAT_ANALYSIS_PROMPT.format(intent_data=json.dumps(intent_data, indent=2), conversation_history=json.dumps(formatted_conversation, indent=2))
             }
         ]
         
@@ -325,18 +320,13 @@ async def final_chat_analysis(session_id: str, chat_history, intent_data) -> Dic
             response_format={ "type": "json_object" }
         )
         
-        # Parse and validate response
         try:
             analysis_result = json.loads(response.choices[0].message.content)
-            
-            # Validate required fields
-            if not all(key in analysis_result for key in ["summary", "mentor_name"]):
-                raise ValueError("Missing required fields in analysis result")
                 
             # Validate mentor name
             valid_mentors = [
                 "productivity_and_balance_coach",
-                "carrer_navigator",
+                "career_navigator",
                 "collaboration_and_conflict_guide",
                 "performance_and_skills_enhancer",
                 "communication_catalyst",
@@ -347,8 +337,8 @@ async def final_chat_analysis(session_id: str, chat_history, intent_data) -> Dic
                 "leadership_foundations_guide"
             ]
             
-            if analysis_result["mentor_name"] not in valid_mentors:
-                raise ValueError(f"Invalid mentor name: {analysis_result['mentor_name']}")
+            if analysis_result.get("recommended_mentor") not in valid_mentors:
+                raise ValueError(f"Invalid mentor name: {analysis_result['recommended_mentor']}")
             
             logger.info(f"[Session: {session_id}] Final analysis completed successfully")
             return analysis_result
@@ -398,7 +388,7 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             logger.error(f"[Session: {session_id}] Failed to retrieve intent data")
             return {"error": "Failed to retrieve conversation context", "conversation_status": "error"}
         
-        if intent_data.get("is_mentor_assigned"):
+        if intent_data.get("chat_completed", False):
             logger.info(f"[Session: {session_id}] Mentor already assigned for this conversation")
             return {
                 "response": await mentor_chat_completion(employee_id, intent_data, chat_history, session_id, message),
@@ -425,13 +415,12 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             logger.info(f"[Session: {session_id}] Conversation complete - Limits reached")
             await save_conversation_status(session_id, "complete")
             final_analysis = await final_chat_analysis(session_id, chat_history, intent_data)
-            intent_data["is_mentor_assigned"] = True
-            intent_data["mentor_name"] = final_analysis["mentor_name"]
-            intent_data["chat_summary"] = final_analysis["summary"]
+            intent_data["chat_completed"] = True
+            intent_data["chat_analysis"] = final_analysis
             
             await save_intent_data(employee_id, session_id, intent_data)
             return {
-                "response": f"Thank you for sharing. I'll make sure to get this information to the right team. After analyzing your conversation, I recommend you to talk to a {final_analysis['mentor_name']}. You can just say Hi to start the conversation with the mentor.",
+                "response": f"Thank you for sharing. I'll make sure to get this information to the right team. After analyzing your conversation, I recommend you to talk to a {final_analysis['recommended_mentor']}. You can just say Hi to start the conversation with the mentor.",
                 "conversation_status": "complete",
                 "intent_data": intent_data
             }
@@ -462,13 +451,12 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             logger.info(f"[Session: {session_id}] Conversation complete - Analysis based")
             await save_conversation_status(session_id, "complete")
             final_analysis = await final_chat_analysis(session_id, chat_history, intent_data)
-            intent_data["is_mentor_assigned"] = True
-            intent_data["mentor_name"] = final_analysis["mentor_name"]
-            intent_data["chat_summary"] = final_analysis["summary"]
+            intent_data["chat_completed"] = True
+            intent_data["chat_analysis"] = final_analysis
             
             await save_intent_data(employee_id, session_id, intent_data)
             return {
-                "response": f"Thank you for sharing. I'll make sure to get this information to the right team. After analyzing your conversation, I recommend you to talk to a {final_analysis['mentor_name']}. You can just say Hi to start the conversation with the mentor.",
+                "response": f"Thank you for sharing. I'll make sure to get this information to the right team. After analyzing your conversation, I recommend you to talk to a {final_analysis['recommended_mentor']}. You can just say Hi to start the conversation with the mentor.",
                 "conversation_status": "complete",
                 "intent_data": intent_data
             }
@@ -503,12 +491,33 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
     
 if __name__ == "__main__":
     import asyncio
-    # asyncio.run(get_chat_history("1742832471.228664"))
-    # # Example usage
-    session_id = "1742832471.228665"
-    # That definitely sounds like a lot to handle, and it's understandable that you're feeling overwhelmed when you have to cover for absent team members on top of your own tasks. To get a better understanding, how often does this situation of your team being absent occur?\n
-    message = "recently, it occuring too much "
-    employee_id = 'EMP0454'
-    
-    response = asyncio.run(chat_complete(employee_id, session_id, message))
-    print(response)
+
+    async def main():
+        try:
+            session_id = "98162e50-00d8-4a51-bb7c-ae29a3776142"
+            
+            # Get chat history and intent data
+            chat_history = await get_chat_history(session_id)
+            if not chat_history:
+                print("No chat history found")
+                return
+                
+            intent_data = await get_intent_data(session_id)
+            if not intent_data:
+                print("No intent data found")
+                return
+            
+            # Perform final analysis
+            result = await final_chat_analysis(
+                session_id=session_id,
+                chat_history=chat_history,
+                intent_data=intent_data
+            )
+            
+            print("\nFinal Analysis:", result)
+            
+        except Exception as e:
+            print(f"An error occurred: {str(e)}")
+
+    # Run all async operations in a single event loop
+    asyncio.run(main())

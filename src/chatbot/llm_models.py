@@ -1,6 +1,10 @@
+from dotenv import load_dotenv
 from langsmith.wrappers import wrap_openai
 from src.runner import groq_api_manager, google_api_manager
 from openai import OpenAI
+import os
+
+load_dotenv()
 
 def get_model(model_provider: str  = "GROQ"):
     if model_provider in ["GROQ"]:

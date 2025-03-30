@@ -34,7 +34,7 @@ async def mentor_chat_completion(employee_id: str, intent_data: Dict, chat_histo
     """
     logger.info(f"[Session: {session_id}] Starting mentor chat completion")
     try:
-        mentor_name = intent_data.get("mentor_name")
+        mentor_name = intent_data.get("chat_analysis", {}).get("recommended_mentor")
         if not mentor_name:
             logger.error(f"[Session: {session_id}] No mentor assigned")
             return "I apologize, but I don't see a mentor assigned to this conversation. Please start a new conversation."
