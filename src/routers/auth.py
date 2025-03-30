@@ -12,7 +12,7 @@ from datetime import datetime
 from utils.config import settings
 
 router = APIRouter()
-logger = setup_logger("src/auth/routers.py")
+logger = setup_logger("src/routers/auth.py")
 async_db = get_async_database()
 
 @router.post("/signup", response_model=UserResponse)

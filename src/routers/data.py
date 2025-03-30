@@ -569,33 +569,60 @@ async def get_employee_summary(employee_id: str):
     Parameters:
     - employee_id: Employee ID string
     """
+
+    def get_vibe(score):
+            if not isinstance(score, (int, float)):
+                return "unknown"
+            
+            if score>4.5 and score<=5:
+                return "Excited"
+            elif score>3.5 and score<=4.5:
+                return "Happy"
+            elif score>2.5 and score<=3.5:
+                return "Okay"
+            elif score>1.5 and score<=2.5:
+                return "Sad"
+            elif score>=0 and score<=1.5:
+                return "Frustated"
+            
     try:
         # Get all data in parallel
         vibe_data, performance_data, activity_data, rewards_data, leave_data = await asyncio.gather(
-            async_db["vibemeter"].find({"Employee_ID": employee_id}).to_list(length=None),
+            async_db["vibemeter"].find({"Employee_ID": employee_id}).sort("Response_Date", -1).to_list(length=None),
             async_db["performance"].find({"Employee_ID": employee_id}).to_list(length=None),
             async_db["activity"].find({"Employee_ID": employee_id}).to_list(length=None),
             async_db["rewards"].find({"Employee_ID": employee_id}).to_list(length=None),
             async_db["leave"].find({"Employee_ID": employee_id}).to_list(length=None)
         )
 
-        # Process vibe data - count emotion zones
-        emotion_counts = defaultdict(int)
-        for vibe in vibe_data:
-            score = vibe.get('Vibe_Score')
-            if isinstance(score, (int, float)):
-                if score == 1:
-                    emotion_counts['extremely_low'] += 1  # Very negative
-                elif score == 2:
-                    emotion_counts['low'] += 1            # Negative
-                elif score == 3:
-                    emotion_counts['neutral'] += 1        # Neutral
-                elif score == 4:
-                    emotion_counts['positive'] += 1       # Positive
-                elif score == 5:
-                    emotion_counts['high'] += 1           # Very positive
-                elif score == 6:
-                    emotion_counts['extremely_high'] += 1 # Exceptional
+        latest_vibe = None
+
+        if vibe_data:
+            latest_vibe = {
+                    "vibe_score": vibe_data[0].get("Vibe_Score"),
+                    "date": vibe_data[0].get("Response_Date").isoformat() 
+                        if isinstance(vibe_data[0].get("Response_Date"), datetime) 
+                        else None
+                }
+
+            # Process vibe data - count emotion zones
+            emotion_counts = defaultdict(int)
+            vibe_trend = []
+            for vibe in vibe_data:
+                try:
+                    response_date = vibe.get("Response_Date")
+                    if isinstance(response_date, datetime):
+                        response_date = response_date.isoformat()
+                    
+                    curr_vibe = {
+                        "date": response_date,
+                        "vibe_score": vibe.get("Vibe_Score"),
+                        "vibe": get_vibe(vibe.get("Vibe_Score"))
+                    }
+                        
+                    vibe_trend.append(curr_vibe)
+                except Exception as e:
+                    print(f"Skipping malformed vibe record: {e}")
 
         # Process performance data
         performance_rating = None
@@ -603,18 +630,29 @@ async def get_employee_summary(employee_id: str):
             performance_rating = performance_data[0].get('Performance_Rating')
 
         # Process activity data (last 10 years)
-        recent_activity = [a for a in activity_data if 
-                          (datetime.now() - a.get('Date', datetime.now())).days <= 3650]
-        
-        total_work_hours = sum(a.get('Work_Hours', 0) for a in recent_activity)
+        recent_activity = None
+        activities = []
+        if activity_data:
+            recent_activity = [a for a in activity_data if 
+                            (datetime.now() - a.get('Date', datetime.now())).days <= 3650]
+            
+            for activity in activity_data:
+                curr_activity = {
+                    "date": activity.get("Date").isoformat(),
+                    "teamsMessages": activity.get("Teams_Messages_Sent"),
+                    "emails": activity.get("Emails_Sent"),
+                    "meetings": activity.get("Meetings_Attended")
+                }
+                activities.append(curr_activity)
+            total_work_hours = sum(a.get('Work_Hours', 0) for a in recent_activity)
+            average_work_hours = total_work_hours / len(recent_activity)
         
         # Process rewards data
-        # awards = [r.get('Award_Type') for r in rewards_data if r.get('Award_Type')]
         awards = []
         for reward in rewards_data:
             award_info = {
-                "award_type": reward.get('Award_Type'),
-                "award_date": reward.get('Award_Date').isoformat() 
+                "type": reward.get('Award_Type'),
+                "date": reward.get('Award_Date').isoformat() 
                     if isinstance(reward.get('Award_Date'), datetime) 
                     else None,
                 "reward_points": reward.get('Reward_Points'),
@@ -630,12 +668,15 @@ async def get_employee_summary(employee_id: str):
 
         # Build response
         response = {
-            "vibe_trend": dict(emotion_counts),
+            "latest_vibe": latest_vibe,
+            "vibe_trend": vibe_trend,
             "meetings_attended": int(sum(a.get('Meetings_Attended', 0) for a in recent_activity)),
             "performance_rating": performance_rating,
             "total_work_hours": round(total_work_hours, 2),
+            "average_work_hours": round(average_work_hours, 2),
             "awards": awards,
-            "activity_level": {
+            "activity_level": activities,
+            "overall_activity_level": {
                 "teams_messages_sent": int(sum(a.get('Teams_Messages_Sent', 0) for a in recent_activity)),
                 "emails_sent": int(sum(a.get('Emails_Sent', 0) for a in recent_activity)),
                 "meetings_attended": int(sum(a.get('Meetings_Attended', 0) for a in recent_activity))
