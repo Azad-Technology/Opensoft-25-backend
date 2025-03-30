@@ -22,10 +22,12 @@ app.add_middleware(
 from src.routers.auth import router as auth_router
 from src.routers.chat import router as chat_router
 from src.routers.employee_analysis import router as employee_router
+from src.routers.admin_analysis import router as admin_router
 
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 app.include_router(chat_router, prefix="/chat", tags=["Chat"])
 app.include_router(employee_router, prefix="/employee", tags=["Employee Analysis"])
+app.include_router(admin_router, prefix="/admin", tags=["Admin Analysis"])
 
 app = gr.mount_gradio_app(app, demo, path = "/gradio")
 
