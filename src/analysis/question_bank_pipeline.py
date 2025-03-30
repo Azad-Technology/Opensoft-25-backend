@@ -165,8 +165,8 @@ def process_question_relationships(api_keys: List[str], batch_size: int = 50):
     for i, primary_question in enumerate(tagged_questions):
         
         
-        # 4 is left 
-        if (i>20 or i<=10):
+        # i = 3 is left  and question 17 (118 - 168)   and 
+        if (i>40 or i<=20):
             continue
         print(f"Processing relationships for question {i}, {primary_question['id']}")
         
