@@ -166,9 +166,9 @@ def process_question_relationships(api_keys: List[str], batch_size: int = 50):
         
         
         # 4 is left 
-        if (i>10 or i<=3):
+        if (i>20 or i<=10):
             continue
-        print(f"Processing relationships for question {i}")
+        print(f"Processing relationships for question {i}, {primary_question['id']}")
         
         remaining_questions = tagged_questions[i + 1:]
         

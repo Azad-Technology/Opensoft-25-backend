@@ -7,8 +7,8 @@ from typing import Dict, List
 
 logger = setup_logger("src/chatbot/mentors.py")
 async_db = get_async_database()
-MODEL_PROVIDER = "GROQ"
-MODEL_NAME = "llama-3.3-70b-versatile"
+MODEL_PROVIDER = "GEMINI"
+MODEL_NAME = "gemini-2.0-flash"
 
 async def save_to_chat_history(employee_id: str, session_id: str, role: str, message: str) -> bool:
     logger.info(f"[Session: {session_id}] Saving message to chat history - Role: {role}")
