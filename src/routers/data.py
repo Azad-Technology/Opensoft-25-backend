@@ -11,7 +11,6 @@ import asyncio
 router = APIRouter()
 async_db = get_async_database()
 
-# ... (keep your existing get_all_collections_data and basic endpoints) ...
 @router.get("/vibescore-trend", summary="Get vibe score trends over time")
 async def get_vibescore_trend(time_period: str = "monthly", limit: int = 12):
     """
@@ -509,8 +508,8 @@ async def get_employee_dashboard(employee_id: str):
                          (datetime.now() - a['Date']).days <= 3650] if activity_data else [] 
         
         activity_stats = {
-            "teams_messages_sent": sum(a['Teams_Messages_Sent'] for a in recent_activity),
-            "emails_sent": sum(a['Emails_Sent'] for a in recent_activity),
+            "teams_messages_sent": int(sum(a['Teams_Messages_Sent'] for a in recent_activity)),
+            "emails_sent": int(sum(a['Emails_Sent'] for a in recent_activity)),
             "meetings_attended": sum(a['Meetings_Attended'] for a in recent_activity),
             "work_hours": sum(a['Work_Hours'] for a in recent_activity),
             "data_points": len(recent_activity)
@@ -560,4 +559,94 @@ async def get_employee_dashboard(employee_id: str):
         raise HTTPException(
             status_code=500,
             detail=f"Error fetching employee dashboard: {str(e)}"
+        )
+
+@router.get("/employee/{employee_id}/summary", summary="Get comprehensive employee summary")
+async def get_employee_summary(employee_id: str):
+    """
+    Returns employee summary including vibe trends, performance, activity, and leaves.
+    
+    Parameters:
+    - employee_id: Employee ID string
+    """
+    try:
+        # Get all data in parallel
+        vibe_data, performance_data, activity_data, rewards_data, leave_data = await asyncio.gather(
+            async_db["vibemeter"].find({"Employee_ID": employee_id}).to_list(length=None),
+            async_db["performance"].find({"Employee_ID": employee_id}).to_list(length=None),
+            async_db["activity"].find({"Employee_ID": employee_id}).to_list(length=None),
+            async_db["rewards"].find({"Employee_ID": employee_id}).to_list(length=None),
+            async_db["leave"].find({"Employee_ID": employee_id}).to_list(length=None)
+        )
+
+        # Process vibe data - count emotion zones
+        emotion_counts = defaultdict(int)
+        for vibe in vibe_data:
+            score = vibe.get('Vibe_Score')
+            if isinstance(score, (int, float)):
+                if score == 1:
+                    emotion_counts['extremely_low'] += 1  # Very negative
+                elif score == 2:
+                    emotion_counts['low'] += 1            # Negative
+                elif score == 3:
+                    emotion_counts['neutral'] += 1        # Neutral
+                elif score == 4:
+                    emotion_counts['positive'] += 1       # Positive
+                elif score == 5:
+                    emotion_counts['high'] += 1           # Very positive
+                elif score == 6:
+                    emotion_counts['extremely_high'] += 1 # Exceptional
+
+        # Process performance data
+        performance_rating = None
+        if performance_data:
+            performance_rating = performance_data[0].get('Performance_Rating')
+
+        # Process activity data (last 10 years)
+        recent_activity = [a for a in activity_data if 
+                          (datetime.now() - a.get('Date', datetime.now())).days <= 3650]
+        
+        total_work_hours = sum(a.get('Work_Hours', 0) for a in recent_activity)
+        
+        # Process rewards data
+        # awards = [r.get('Award_Type') for r in rewards_data if r.get('Award_Type')]
+        awards = []
+        for reward in rewards_data:
+            award_info = {
+                "award_type": reward.get('Award_Type'),
+                "award_date": reward.get('Award_Date').isoformat() 
+                    if isinstance(reward.get('Award_Date'), datetime) 
+                    else None,
+                "reward_points": reward.get('Reward_Points'),
+            }
+            if award_info['award_type']:  # Only include if award_type exists
+                awards.append(award_info)
+
+        # Process leave data
+        leave_counts = defaultdict(int)
+        for leave in leave_data:
+            leave_type = leave.get('Leave_Type', 'other').lower().replace(' ', '_')
+            leave_counts[leave_type] += leave.get('Leave_Days', 0)
+
+        # Build response
+        response = {
+            "vibe_trend": dict(emotion_counts),
+            "meetings_attended": int(sum(a.get('Meetings_Attended', 0) for a in recent_activity)),
+            "performance_rating": performance_rating,
+            "total_work_hours": round(total_work_hours, 2),
+            "awards": awards,
+            "activity_level": {
+                "teams_messages_sent": int(sum(a.get('Teams_Messages_Sent', 0) for a in recent_activity)),
+                "emails_sent": int(sum(a.get('Emails_Sent', 0) for a in recent_activity)),
+                "meetings_attended": int(sum(a.get('Meetings_Attended', 0) for a in recent_activity))
+            },
+            "leaves": dict(leave_counts)
+        }
+
+        return JSONResponse(content=response)
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching employee summary: {str(e)}"
         )
