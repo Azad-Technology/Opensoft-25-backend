@@ -1,5 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, List, Any, Optional
+from utils.analysis import get_vibe
+from utils.app_logger import setup_logger
+from utils.auth import get_current_user
 from utils.config import get_async_database
 from fastapi.responses import JSONResponse
 import pandas as pd
@@ -10,6 +13,7 @@ import asyncio
 
 router = APIRouter()
 async_db = get_async_database()
+logger = setup_logger("src/routers/employee_analysis.py")
 
 @router.get("/vibescore-trend", summary="Get vibe score trends over time")
 async def get_vibescore_trend(time_period: str = "monthly", limit: int = 12):
@@ -561,31 +565,10 @@ async def get_employee_dashboard(employee_id: str):
             detail=f"Error fetching employee dashboard: {str(e)}"
         )
 
-@router.get("/employee/{employee_id}/summary", summary="Get comprehensive employee summary")
-async def get_employee_summary(employee_id: str):
-    """
-    Returns employee summary including vibe trends, performance, activity, and leaves.
-    
-    Parameters:
-    - employee_id: Employee ID string
-    """
-
-    def get_vibe(score):
-            if not isinstance(score, (int, float)):
-                return "unknown"
-            
-            if score>4.5 and score<=5:
-                return "Excited"
-            elif score>3.5 and score<=4.5:
-                return "Happy"
-            elif score>2.5 and score<=3.5:
-                return "Okay"
-            elif score>1.5 and score<=2.5:
-                return "Sad"
-            elif score>=0 and score<=1.5:
-                return "Frustated"
-            
+@router.get("/dashboard")
+async def get_employee_summary(current_user: dict = Depends(get_current_user)):
     try:
+        employee_id = current_user["employee_id"]
         # Get all data in parallel
         vibe_data, performance_data, activity_data, rewards_data, leave_data = await asyncio.gather(
             async_db["vibemeter"].find({"Employee_ID": employee_id}).sort("Response_Date", -1).to_list(length=None),
@@ -596,7 +579,6 @@ async def get_employee_summary(employee_id: str):
         )
 
         latest_vibe = None
-
         if vibe_data:
             latest_vibe = {
                     "vibe_score": vibe_data[0].get("Vibe_Score"),
@@ -605,8 +587,6 @@ async def get_employee_summary(employee_id: str):
                         else None
                 }
 
-            # Process vibe data - count emotion zones
-            emotion_counts = defaultdict(int)
             vibe_trend = []
             for vibe in vibe_data:
                 try:
@@ -670,6 +650,7 @@ async def get_employee_summary(employee_id: str):
         response = {
             "latest_vibe": latest_vibe,
             "vibe_trend": vibe_trend,
+            "leave_balance": 20 - len(leave_data),
             "meetings_attended": int(sum(a.get('Meetings_Attended', 0) for a in recent_activity)),
             "performance_rating": performance_rating,
             "total_work_hours": round(total_work_hours, 2),
@@ -691,3 +672,7 @@ async def get_employee_summary(employee_id: str):
             status_code=500,
             detail=f"Error fetching employee summary: {str(e)}"
         )
+        
+        
+if __name__ == "__main__":
+    pass
