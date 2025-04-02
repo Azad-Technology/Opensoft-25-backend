@@ -173,3 +173,5 @@ cython_debug/
 
 opensoft_25_backend.egg-info
 .gradio
+
+uv.lock

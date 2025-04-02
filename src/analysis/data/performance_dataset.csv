@@ -2,7 +2,7 @@ Employee_ID,Review_Period,Performance_Rating,Manager_Feedback,Promotion_Consider
 EMP0220,Annual 2023,4,Meets Expectations,FALSE
 EMP0145,H2 2023,3,Exceeds Expectations,TRUE
 EMP0321,H1 2023,4,Meets Expectations,TRUE
-EMP0143,H2 2023,4,Needs Improvement,FALSE
+EMP0143,H2 2023,4,Needs Improvement,FALSEP
 EMP0467,H2 2023,3,Exceeds Expectations,TRUE
 EMP0370,H2 2023,2,Meets Expectations,TRUE
 EMP0060,H1 2023,2,Exceeds Expectations,TRUE
