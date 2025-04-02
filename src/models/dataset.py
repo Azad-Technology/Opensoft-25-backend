@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime , date
 
 class VibeData(BaseModel):
     response_date: datetime
@@ -36,3 +36,8 @@ class ActivityData(BaseModel):
     emails_sent: int
     meetings_attended: int
     work_hours: Optional[float]
+
+class ScheduleEntry(BaseModel):
+    date: date
+    title: str
+    note: str

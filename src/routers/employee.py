@@ -1,15 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, List, Any, Optional
+from src.models.dataset import ScheduleEntry
 from utils.analysis import get_vibe
 from utils.app_logger import setup_logger
 from utils.auth import get_current_user
 from utils.config import get_async_database
 from fastapi.responses import JSONResponse
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from collections import defaultdict
 import numpy as np
 import asyncio
+from pydantic import BaseModel
 
 router = APIRouter()
 async_db = get_async_database()
@@ -572,6 +574,68 @@ async def get_employee_summary(current_user: dict = Depends(get_current_user)):
             detail=f"Error fetching employee summary: {str(e)}"
         )
         
+# Schedules CRUD API
+@router.get("/get_schedules", summary="Get schedules for an employee by month/year")
+async def get_schedules(date: date, current_user: dict = Depends(get_current_user)):
+    try:
+        employee_id = current_user["employee_id"]
+        target_month = date.month
+        target_year = date.year
+        start_date = date.replace(day=1)
+        if target_month == 12:
+            end_date = date.replace(year=target_year + 1, month=1, day=1)
+        else:
+            end_date = date.replace(month=target_month + 1, day=1)
+
+        start_date_str = start_date.isoformat()
+        end_date_str = end_date.isoformat()
+
+        query = {
+            "employee_id": employee_id,
+            "date": {"$gte": start_date_str, "$lt": end_date_str}
+        }
+
+        cursor = async_db["schedules"].find(query)
+        schedules = await cursor.to_list(length=None)
+        for schedule in schedules:
+            schedule.pop("_id")
+
+        if not schedules:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No schedules found for employee {employee_id} in {target_month}/{target_year}"
+            )
+
+        return {
+            "employee_id": employee_id,
+            "month": target_month,
+            "year": target_year,
+            "schedules": schedules
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving schedules: {str(e)}"
+        )
+
+
+
+@router.post("/add_schedule", summary="Add a new schedule entry")
+async def add_schedule_entry(entry: ScheduleEntry, current_user: dict = Depends(get_current_user)):
+    try:
+        entry_dict = entry.model_dump()
+        entry_dict['date'] = entry.date.isoformat()
+        entry_dict['employee_id'] = current_user["employee_id"]
+
+        result = await async_db["schedules"].insert_one(entry_dict)
+        return {"message": "Schedule entry added successfully", "id": str(result.inserted_id)}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while adding the schedule entry: {str(e)}"
+        )
         
 if __name__ == "__main__":
     pass
