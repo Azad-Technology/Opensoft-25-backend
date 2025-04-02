@@ -1,7 +1,8 @@
 import logging
 import os
 
-def setup_logger(name, log_file='app2.log'):
+
+def setup_logger(name, log_file="app2.log"):
     # Create a logger with the specified name
     logger = logging.getLogger(name)
 
@@ -18,7 +19,9 @@ def setup_logger(name, log_file='app2.log'):
 
     # Set level and format for the file handler
     file_handler.setLevel(logging.DEBUG)
-    file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
     file_handler.setFormatter(file_formatter)
 
     # Add the file handler to the logger
@@ -27,9 +30,11 @@ def setup_logger(name, log_file='app2.log'):
     # Optionally, add a console handler as well
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.DEBUG)
-    console_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    console_formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
     console_handler.setFormatter(console_formatter)
-    
+
     logger.addHandler(console_handler)
 
     return logger

@@ -3,14 +3,14 @@
 # Check if cloudflared is installed
 if ! command -v cloudflared &> /dev/null; then
     echo "Performing initial setup..."
-    
+
     # Update and upgrade the system
     sudo apt update && sudo apt upgrade -y
 
     # Install essential tools and libraries
     sudo apt install -y apt-transport-https ca-certificates curl software-properties-common \
         git vim nano tmux neofetch htop tree unzip wget \
-        build-essential python3 python3-pip nodejs npm 
+        build-essential python3 python3-pip nodejs npm
 
     # Install Docker
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg.tmp
@@ -18,7 +18,7 @@ if ! command -v cloudflared &> /dev/null; then
 
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-    sudo apt update 
+    sudo apt update
     sudo apt install -y docker-ce docker-ce-cli containerd.io
 
     # Add user to docker group
@@ -84,7 +84,7 @@ start_tunnel() {
     local log_file="cloudflared_${port}.log"
     cloudflared tunnel --url http://localhost:$port > $log_file 2>&1 &
     local pid=$!
-    
+
     # Wait for the URL to appear in the log file (timeout after 30 seconds)
     local timeout=30
     local url=""
@@ -109,7 +109,7 @@ docker stop backend
 
 # Remove specific Docker containers
 echo "Removing Docker containers..."
-docker rm backend 
+docker rm backend
 
 # Remove associated Docker images
 echo "Removing Docker images..."

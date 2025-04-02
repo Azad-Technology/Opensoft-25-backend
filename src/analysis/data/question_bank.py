@@ -221,5 +221,5 @@ question_bank = [
     "Would you like to schedule a follow-up conversation to discuss progress on these matters?",
     "Of the concerns we've discussed, which one feels most important to address first?",
     "How would you like to see the company respond to the feedback you've shared today?",
-    "What timeframe would you consider reasonable for addressing the issues we've discussed?"
+    "What timeframe would you consider reasonable for addressing the issues we've discussed?",
 ]

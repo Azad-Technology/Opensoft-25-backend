@@ -1,43 +1,44 @@
-from datetime import datetime
-import pandas as pd
-from utils.config import get_async_database
 import asyncio
+
 from utils.app_logger import setup_logger
+from utils.config import get_async_database
 
 async_db = get_async_database()
 logger = setup_logger("src/analysis/data_sample.py")
 
+
 async def get_all_employees():
     """Get a list of all unique employee IDs across all collections"""
     logger.info("Fetching all unique employee IDs")
-    
+
     all_employees = set()
-    
+
     try:
         # Aggregate employee IDs from all collections
         collections = {
-            'vibemeter': await async_db.vibemeter.distinct("Employee_ID"),
-            'rewards': await async_db.rewards.distinct("Employee_ID"),
-            'performance': await async_db.performance.distinct("Employee_ID"),
-            'onboarding': await async_db.onboarding.distinct("Employee_ID"),
-            'leave': await async_db.leave.distinct("Employee_ID"),
-            'activity': await async_db.activity.distinct("Employee_ID")
+            "vibemeter": await async_db.vibemeter.distinct("Employee_ID"),
+            "rewards": await async_db.rewards.distinct("Employee_ID"),
+            "performance": await async_db.performance.distinct("Employee_ID"),
+            "onboarding": await async_db.onboarding.distinct("Employee_ID"),
+            "leave": await async_db.leave.distinct("Employee_ID"),
+            "activity": await async_db.activity.distinct("Employee_ID"),
         }
-        
+
         for collection_name, employees in collections.items():
             logger.debug(f"Found {len(employees)} employees in {collection_name}")
             all_employees.update(employees)
-        
+
         logger.info(f"Total unique employees found: {len(all_employees)}")
         return sorted(list(all_employees))
     except Exception as e:
-        logger.error(f"Error getting employee IDs: {str(e)}")
+        logger.error(f"Error getting employee IDs: {e!s}")
         return []
+
 
 async def create_employee_profile(employee_id: str) -> str:
     """Create a comprehensive profile for a single employee"""
     logger.info(f"Creating text profile for employee: {employee_id}")
-    
+
     profile = f"Employee Profile for {employee_id}\n"
     try:
         # Basic Information
@@ -45,26 +46,40 @@ async def create_employee_profile(employee_id: str) -> str:
         if employee_data:
             logger.debug(f"Found basic information for employee: {employee_id}")
             profile += f"Name: {employee_data['name']}\n\n"
-        
+
         # Collect data from each collection
         collections_data = {
-            'onboarding': await async_db.onboarding.find_one({"Employee_ID": employee_id}),
-            'performance': await async_db.performance.find({"Employee_ID": employee_id}).to_list(length=None),
-            'rewards': await async_db.rewards.find({"Employee_ID": employee_id}).to_list(length=None),
-            'vibemeter': await async_db.vibemeter.find({"Employee_ID": employee_id}).to_list(length=None),
-            'leave': await async_db.leave.find({"Employee_ID": employee_id}).to_list(length=None),
-            'activity': await async_db.activity.find({"Employee_ID": employee_id}).to_list(length=None)
+            "onboarding": await async_db.onboarding.find_one(
+                {"Employee_ID": employee_id}
+            ),
+            "performance": await async_db.performance.find(
+                {"Employee_ID": employee_id}
+            ).to_list(length=None),
+            "rewards": await async_db.rewards.find(
+                {"Employee_ID": employee_id}
+            ).to_list(length=None),
+            "vibemeter": await async_db.vibemeter.find(
+                {"Employee_ID": employee_id}
+            ).to_list(length=None),
+            "leave": await async_db.leave.find({"Employee_ID": employee_id}).to_list(
+                length=None
+            ),
+            "activity": await async_db.activity.find(
+                {"Employee_ID": employee_id}
+            ).to_list(length=None),
         }
 
         # Onboarding Information
-        if collections_data['onboarding']:
+        if collections_data["onboarding"]:
             logger.debug(f"Adding onboarding information for: {employee_id}")
             profile += "Onboarding Information:\n"
-            profile += f"Joining Date: {collections_data['onboarding']['Joining_Date']}\n"
+            profile += (
+                f"Joining Date: {collections_data['onboarding']['Joining_Date']}\n"
+            )
             profile += f"Onboarding Feedback: {collections_data['onboarding']['Onboarding_Feedback']}\n"
             profile += f"Mentor Assigned: {collections_data['onboarding']['Mentor_Assigned']}\n"
             profile += f"Initial Training Completed: {collections_data['onboarding']['Initial_Training_Completed']}\n\n"
-            
+
         # Vibe Meter Information
         vibe_cursor = async_db.vibemeter.find({"Employee_ID": employee_id})
         vibe_data = await vibe_cursor.to_list(length=None)
@@ -75,14 +90,16 @@ async def create_employee_profile(employee_id: str) -> str:
                 profile += f"Vibe Score: {record['Vibe_Score']}\n\n"
 
         # Performance Information
-        if collections_data['performance']:
+        if collections_data["performance"]:
             logger.debug(f"Adding performance information for: {employee_id}")
             profile += "Performance Information:\n"
-            for record in collections_data['performance']:
+            for record in collections_data["performance"]:
                 profile += f"Review Period: {record['Review_Period']}\n"
                 profile += f"Performance Rating: {record['Performance_Rating']}\n"
                 profile += f"Manager Feedback: {record['Manager_Feedback']}\n"
-                profile += f"Promotion Consideration: {record['Promotion_Consideration']}\n\n"
+                profile += (
+                    f"Promotion Consideration: {record['Promotion_Consideration']}\n\n"
+                )
 
         # Rewards Information
         rewards_cursor = async_db.rewards.find({"Employee_ID": employee_id})
@@ -116,98 +133,109 @@ async def create_employee_profile(employee_id: str) -> str:
                 profile += f"Meetings Attended: {record['Meetings_Attended']}\n"
                 profile += f"Work Hours: {record.get('Work_Hours', 'N/A')}\n\n"
 
-        logger.info(f"Successfully created profile for employee: {employee_id} - {profile}")
+        logger.info(
+            f"Successfully created profile for employee: {employee_id} - {profile}"
+        )
         return profile
 
     except Exception as e:
-        logger.error(f"Error creating profile for {employee_id}: {str(e)}", exc_info=True)
+        logger.error(f"Error creating profile for {employee_id}: {e!s}", exc_info=True)
         raise e
+
 
 async def get_employee_profile_json(employee_id: str) -> dict:
     """Create a JSON format profile for a single employee"""
     logger.info(f"Creating JSON profile for employee: {employee_id}")
-    
+
     try:
         # Collect all data
         collections_data = {
             "employee_id": employee_id,
             "onboarding": await async_db.onboarding.find_one(
-                {"Employee_ID": employee_id},
-                {"_id": 0}
+                {"Employee_ID": employee_id}, {"_id": 0}
             ),
             "vibemeter": await async_db.vibemeter.find(
-                {"Employee_ID": employee_id},
-                {"_id": 0}
+                {"Employee_ID": employee_id}, {"_id": 0}
             ).to_list(length=None),
             "performance": await async_db.performance.find(
-                {"Employee_ID": employee_id},
-                {"_id": 0}
+                {"Employee_ID": employee_id}, {"_id": 0}
             ).to_list(length=None),
             "rewards": await async_db.rewards.find(
-                {"Employee_ID": employee_id},
-                {"_id": 0}
+                {"Employee_ID": employee_id}, {"_id": 0}
             ).to_list(length=None),
             "leave": await async_db.leave.find(
-                {"Employee_ID": employee_id},
-                {"_id": 0}
+                {"Employee_ID": employee_id}, {"_id": 0}
             ).to_list(length=None),
             "activity": await async_db.activity.find(
-                {"Employee_ID": employee_id},
-                {"_id": 0}
-            ).to_list(length=None)
+                {"Employee_ID": employee_id}, {"_id": 0}
+            ).to_list(length=None),
         }
-        
+
         logger.debug(f"Calculating summary metrics for: {employee_id}")
-        
+
         # Calculate summary metrics
         summary = {}
-        
+
         if collections_data["vibemeter"]:
-            summary["average_vibe_score"] = sum(v["Vibe_Score"] for v in collections_data["vibemeter"]) / len(collections_data["vibemeter"])
-        
+            summary["average_vibe_score"] = sum(
+                v["Vibe_Score"] for v in collections_data["vibemeter"]
+            ) / len(collections_data["vibemeter"])
+
         if collections_data["rewards"]:
-            summary["total_rewards"] = sum(r["Reward_Points"] for r in collections_data["rewards"])
-        
+            summary["total_rewards"] = sum(
+                r["Reward_Points"] for r in collections_data["rewards"]
+            )
+
         if collections_data["performance"]:
             summary["latest_performance"] = collections_data["performance"][-1]
-        
+
         if collections_data["leave"]:
-            summary["total_leave_days"] = sum(l["Leave_Days"] for l in collections_data["leave"])
-        
+            summary["total_leave_days"] = sum(
+                l["Leave_Days"] for l in collections_data["leave"]
+            )
+
         if collections_data["activity"]:
-            summary["average_work_hours"] = sum(a.get("Work_Hours", 0) for a in collections_data["activity"]) / len(collections_data["activity"])
-        
+            summary["average_work_hours"] = sum(
+                a.get("Work_Hours", 0) for a in collections_data["activity"]
+            ) / len(collections_data["activity"])
+
         collections_data["summary"] = summary
-        
-        logger.info(f"Successfully created JSON profile for: {employee_id} - {collections_data}")
+
+        logger.info(
+            f"Successfully created JSON profile for: {employee_id} - {collections_data}"
+        )
         return collections_data
 
     except Exception as e:
-        logger.error(f"Error creating JSON profile for {employee_id}: {str(e)}", exc_info=True)
+        logger.error(
+            f"Error creating JSON profile for {employee_id}: {e!s}", exc_info=True
+        )
         return None
 
+
 if __name__ == "__main__":
+
     async def main():
         logger.info("Starting profile generation test")
-        
-        sample_employee = 'EMP0454'
-        
+
+        sample_employee = "EMP0454"
+
         try:
             # Text format
             logger.info("Generating text format profile")
             profile_text = await create_employee_profile(sample_employee)
             print("Text Format Profile:")
             print(profile_text)
-            
+
             # JSON format
             logger.info("Generating JSON format profile")
             profile_json = await get_employee_profile_json(sample_employee)
             print("\nJSON Format Profile:")
             print(profile_json)
-            
+
             logger.info("Profile generation test completed successfully")
-            
+
         except Exception as e:
-            logger.error(f"Error in profile generation test: {str(e)}", exc_info=True)
+            logger.error(f"Error in profile generation test: {e!s}", exc_info=True)
 
     asyncio.run(main())
