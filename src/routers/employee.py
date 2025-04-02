@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, List, Any, Optional
-from src.models.dataset import ScheduleEntry
+from src.models.dataset import ScheduleEntry, TicketEntry
 from utils.analysis import get_vibe
 from utils.app_logger import setup_logger
 from utils.auth import get_current_user
@@ -11,6 +11,7 @@ from datetime import date, datetime, timedelta
 from collections import defaultdict
 import numpy as np
 import asyncio
+import uuid
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -629,7 +630,6 @@ async def get_schedules(date: date, current_user: dict = Depends(get_current_use
         )
 
 
-
 @router.post("/add_schedule", summary="Add a new schedule entry")
 async def add_schedule_entry(entry: ScheduleEntry, current_user: dict = Depends(get_current_user)):
     try:
@@ -645,6 +645,59 @@ async def add_schedule_entry(entry: ScheduleEntry, current_user: dict = Depends(
             status_code=500,
             detail=f"An error occurred while adding the schedule entry: {str(e)}"
         )
+    
+# Help & Support APIs
+@router.get("/get_employee_tickets", summary="Get tickets created by an employee")
+async def get_employee_tickets(current_user: dict = Depends(get_current_user)):
+    try:
+        employee_id = current_user["employee_id"]
+
+        cursor = async_db["tickets"].find({
+            "employee_id": employee_id,
+        })
+
+        tickets = await cursor.to_list(length=None)
+
+        if not tickets:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No tickets found for employee {employee_id}"
+            )
         
+        for ticket in tickets:
+            ticket.pop("_id")
+
+        return {
+            "employee_id": employee_id,
+            "tickets": tickets
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving tickets: {str(e)}"
+        )
+
+
+@router.post("/add_ticket", summary="Add a new ticket")
+async def add_ticket(entry: TicketEntry, current_user: dict = Depends(get_current_user)):
+    try:
+        entry_dict = entry.model_dump()
+        entry_dict['date'] = datetime.now().timestamp()
+        entry_dict['employee_id'] = current_user["employee_id"]
+        entry_dict['employee_name'] = current_user["name"]
+        entry_dict['is_resolved'] = False
+        entry_dict['ticket_id'] = str(uuid.uuid4())[:8]
+
+        result = await async_db["tickets"].insert_one(entry_dict)
+        return {"message": "Ticket entry added successfully", "id": str(result.inserted_id)}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while adding the ticket: {str(e)}"
+        )
+
 if __name__ == "__main__":
     pass
+

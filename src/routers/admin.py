@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta  # Add timedelta to imports
 from collections import defaultdict
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from src.models.auth import OnboardingRequest
 from utils.analysis import get_vibe
 from utils.app_logger import setup_logger
@@ -704,4 +704,91 @@ async def add_onboarding(
         raise HTTPException(
             status_code=500,
             detail="An error occurred during onboarding"
+        )
+    
+@router.get("/get_all_tickets", summary="Get all tickets with pagination")
+async def get_all_tickets(
+    current_user: dict = Depends(get_current_user),
+    page: int = Query(1, gt=0, description="Page number starting from 1"),
+    page_size: int = Query(10, gt=0, le=100, description="Number of items per page (max 100)")
+):
+    try:
+        if current_user.get("role") != "hr":
+            raise HTTPException(
+                status_code=403,
+                detail="Unauthorized to access tickets"
+            )
+
+        skip = (page - 1) * page_size
+        total_tickets = await async_db["tickets"].count_documents({})
+        
+        if total_tickets == 0:
+            raise HTTPException(
+                status_code=404,
+                detail="No tickets found in the system"
+            )
+        
+        total_pages = (total_tickets + page_size - 1) // page_size
+
+        cursor = async_db["tickets"].find({}).skip(skip).limit(page_size)
+        tickets = await cursor.to_list(length=page_size)
+
+        for ticket in tickets:
+            ticket.pop("_id")
+
+        return {
+            "data": tickets,
+            "pagination": {
+                "current_page": page,
+                "page_size": page_size,
+                "total_tickets": total_tickets,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_previous": page > 1
+            }
+        }
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving tickets: {str(e)}"
+        )
+    
+@router.post("/set_ticket_status", summary="Set the status of a ticket")
+async def set_ticket_status(ticket_id : str , status_update: bool,  current_user: dict = Depends(get_current_user)):
+    try:
+        if current_user["role"] != "hr":
+            raise HTTPException(
+                status_code=403,
+                detail="Unauthorized to resolve or unresolve tickets"
+            )
+
+        ticket = await async_db["tickets"].find_one({"ticket_id": ticket_id})
+        if not ticket:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No tickets found"
+            )
+        
+        update_result = await async_db["tickets"].update_one(
+            {"ticket_id": ticket_id},
+            {
+                "$set": {
+                    "is_resolved": status_update,
+                    "update_at" : datetime.now().timestamp()
+                }
+            }
+        )
+        return {
+            "ticket_id" : ticket_id,
+            "new_status" : status_update,
+            "response": f"Ticket:{ticket_id} updated successfully"
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving tickets: {str(e)}"
         )
