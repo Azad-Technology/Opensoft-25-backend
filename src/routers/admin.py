@@ -19,6 +19,13 @@ logger = setup_logger("src/routers/admin.py")
 @router.get("/{employee_id}/summary")
 async def get_employee_dashboard(employee_id: str, current_user: dict = Depends(get_current_user)):
     try:
+        
+        if current_user["role_type"] != "hr":
+            raise HTTPException(
+                status_code=403,
+                detail="Unauthorized to see the summary"
+            )
+        
         def process_doc(doc):
             if not doc:
                 return {}
@@ -193,7 +200,6 @@ async def get_employee_dashboard(employee_id: str, current_user: dict = Depends(
             "performance_rating_month_wise": avg_perf_per_month,
             "working_hours_month_wise": avg_work_hours_per_month
         }
-        
         return JSONResponse(content=response)
     
     except HTTPException:

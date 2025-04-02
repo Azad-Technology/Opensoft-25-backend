@@ -45,7 +45,7 @@ async def login(user: UserLogin):
                 "email": db_user["email"],
                 "name": db_user["name"],
                 "role": db_user["role"],
-                "role_type": "admin" if db_user["email"] == "EMP0001@deloitte.com" else "employee",
+                "role_type": db_user["role_type"],
                 "employee_id": db_user.get("employee_id", None)
             }
         }
