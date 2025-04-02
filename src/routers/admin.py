@@ -652,3 +652,64 @@ async def add_onboarding(
             status_code=500,
             detail="An error occurred during onboarding"
         )
+    
+@router.get("/get_all_tickets", summary="Get all tickets created")
+async def get_all_tickets(current_user: dict = Depends(get_current_user)):
+    try:
+        if current_user["role"] != "hr":
+            raise HTTPException(
+                status_code=403,
+                detail="Unauthorized to onboard employees"
+            )
+
+        cursor = async_db["tickets"].find({})
+
+        tickets = await cursor.to_list(length=None)
+
+        if not tickets:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No tickets found"
+            )
+
+        return {
+            "tickets": tickets
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving tickets: {str(e)}"
+        )
+    
+@router.post("/set_ticket_status", summary="Set the status of a ticket")
+async def get_all_tickets(ticket_id : str , status_update: bool,  current_user: dict = Depends(get_current_user)):
+    try:
+        if current_user["role"] != "hr":
+            raise HTTPException(
+                status_code=403,
+                detail="Unauthorized to resolve or unresolve tickets"
+            )
+
+        ticket = await async_db["tickets"].find_one({"_id": ticket_id})
+        if not ticket:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No tickets found"
+            )
+        
+        update_result = await async_db["tickets"].update_one(
+            {"_id": ticket_id},
+            {
+                "$set": {
+                    "is_resolved": status_update,
+                }
+            }
+        )
+        return f"Ticket {ticket_id} updated successfully"
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving tickets: {str(e)}"
+        )

@@ -11,6 +11,7 @@ from datetime import date, datetime, timedelta
 from collections import defaultdict
 import numpy as np
 import asyncio
+import uuid
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -647,8 +648,6 @@ async def get_employee_tickets(current_user: dict = Depends(get_current_user)):
         })
 
         tickets = await cursor.to_list(length=None)
-        for ticket in tickets:
-            ticket.pop("_id")
 
         if not tickets:
             raise HTTPException(
@@ -676,6 +675,7 @@ async def add_ticket(entry: TicketEntry, current_user: dict = Depends(get_curren
         entry_dict['employee_id'] = current_user["employee_id"]
         entry_dict['employee_name'] = current_user["name"]
         entry_dict['is_resolved'] = False
+        entry_dict['_id'] = short_id = str(uuid.uuid4())[:8]
 
         result = await async_db["tickets"].insert_one(entry_dict)
         return {"message": "Ticket entry added successfully", "id": str(result.inserted_id)}
@@ -685,7 +685,7 @@ async def add_ticket(entry: TicketEntry, current_user: dict = Depends(get_curren
             status_code=500,
             detail=f"An error occurred while adding the ticket: {str(e)}"
         )
-        
+
 if __name__ == "__main__":
     pass
 
