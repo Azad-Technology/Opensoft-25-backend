@@ -46,3 +46,5 @@
     ```bash
     pre-commit run --all-files
     ```
+
+and if you find issues from the code you make, it's your responsibility to fix it.
