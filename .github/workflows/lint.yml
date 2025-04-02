@@ -23,7 +23,12 @@ jobs:
         pip install ruff
         
     - name: Lint with Ruff
-      run: ruff check .
+      run: ruff check --fix --output-format=github .
       
     - name: Format check with Ruff
-      run: ruff format --check .
+      run: ruff format .
+
+    - name: Commit changes
+      uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: 'style fixes by ruff'
