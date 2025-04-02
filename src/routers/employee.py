@@ -537,15 +537,23 @@ async def get_employee_summary(current_user: dict = Depends(get_current_user)):
                         else None,
                     "reward_points": reward.get('Reward_Points'),
                 }
-                if award_info['award_type']:  # Only include if award_type exists
-                    awards.append(award_info)
+                # if award_info['award_type']:  # Only include if award_type exists
+                awards.append(award_info)
 
         # Process leave data
         leave_counts = defaultdict(int)
+        leave_info = []
         if leave_data:
             for leave in leave_data:
                 leave_type = leave.get('Leave_Type', 'other').lower().replace(' ', '_')
                 leave_counts[leave_type] += leave.get('Leave_Days', 0)
+                info = {
+                    'leave_start_date' : leave.get('Leave_Start_Date').isoformat(),
+                    'leave_end_date' : leave.get('Leave_End_Date').isoformat(),
+                    'leave_days' : leave.get('Leave_Days'),
+                    'leave_type' : leave.get('Leave_Type'),
+                }
+                leave_info.append(info)
 
         # Build response
         response = {
@@ -563,7 +571,8 @@ async def get_employee_summary(current_user: dict = Depends(get_current_user)):
                 "emails_sent": int(sum(a.get('Emails_Sent', 0) for a in recent_activity)),
                 "meetings_attended": int(sum(a.get('Meetings_Attended', 0) for a in recent_activity))
             },
-            "leaves": dict(leave_counts)
+            "leaves": dict(leave_counts),
+            "all_leaves": leave_info,
         }
 
         return JSONResponse(content=response)
