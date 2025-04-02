@@ -16,6 +16,10 @@ router = APIRouter()
 async_db = get_async_database()
 logger = setup_logger("src/routers/admin.py")
 
+@router.get("/")
+async def get_root():
+    return {"message": "Welcome to the Admin API"}
+
 @router.get("/{employee_id}/summary")
 async def get_employee_dashboard(employee_id: str, current_user: dict = Depends(get_current_user)):
     try:
@@ -472,143 +476,6 @@ async def add_onboarding(
             detail="An error occurred during onboarding"
         )
     
-from fastapi import APIRouter
-from datetime import datetime, timedelta
-from collections import defaultdict
-import numpy as np
-
-router = APIRouter()
-
-async def get_employee_sessions():
-    """Mock function to get employee sessions from database"""
-    # In a real implementation, this would query your database
-    return []  # Replace with actual data retrieval
-
-@router.get("/dashboard")
-async def get_wellness_dashboard(): 
-    # Get all employee sessions
-    sessions = await get_employee_sessions()
-    
-    if not sessions:
-        return {
-            "message": "No employee wellness data available",
-            "data": None
-        }
-    
-    # Initialize metrics
-    wellness_scores = []
-    mood_distribution = defaultdict(int)
-    mood_vs_leaves = defaultdict(list)
-    mood_vs_hours = defaultdict(list)
-    performance_vs_sentiment = []
-    critical_cases = 0
-    severe_cases = 0
-    weekly_trend = defaultdict(list)
-    
-    # Current date for weekly calculations
-    today = datetime.utcnow()
-    one_week_ago = today - timedelta(days=7)
-    
-    # Process each employee session
-    for session in sessions:
-        # Skip if no wellbeing analysis
-        if not session.get("intent_data", {}).get("chat_analysis", {}).get("wellbeing_analysis"):
-            continue
-            
-        wellbeing = session["intent_data"]["chat_analysis"]["wellbeing_analysis"]
-        
-        # 1. Collect wellness scores
-        composite_score = wellbeing.get("composite_score", 0)
-        wellness_scores.append(composite_score)
-        
-        # 2. Count critical cases (priority_level 1 or 2)
-        if wellbeing.get("risk_assessment", {}).get("priority_level", 0) in [1, 2]:
-            critical_cases += 1
-            if composite_score < 30:  # Threshold for severe cases
-                severe_cases += 1
-        
-        # 3. Mood distribution (from emotional_valence score)
-        emotional_score = wellbeing["component_breakdown"]["emotional_valence"]["score"]
-        if emotional_score > 70:
-            mood_distribution["happy"] += 1
-        elif emotional_score > 40:
-            mood_distribution["neutral"] += 1
-        else:
-            mood_distribution["sad"] += 1
-        
-        # 4. Mood vs leaves (would need leave data - mock implementation)
-        # In a real implementation, you'd query leave records
-        mood_vs_leaves[emotional_score > 50 and "positive" or "negative"].append(
-            session.get("leave_days_this_month", 0)  # Mock value
-        )
-        
-        # 5. Mood vs working hours (would need activity data - mock implementation)
-        mood_vs_hours[emotional_score > 50 and "positive" or "negative"].append(
-            session.get("avg_weekly_hours", 40)  # Mock value
-        )
-        
-        # 6. Performance vs sentiment (would need performance data)
-        performance = session.get("performance_rating", 3.0)  # Mock value
-        performance_vs_sentiment.append({
-            "performance": performance,
-            "sentiment": emotional_score
-        })
-        
-        # 7. Weekly trend (group by week)
-        session_date = session.get("updated_at", {}).get("$date", today.isoformat())
-        if isinstance(session_date, str):
-            session_date = datetime.fromisoformat(session_date.replace("Z", ""))
-        
-        if session_date >= one_week_ago:
-            week_key = session_date.strftime("Week %U")
-            weekly_trend[week_key].append(composite_score)
-    
-    # Calculate metrics
-    total_employees = len(wellness_scores)
-    avg_wellness = np.mean(wellness_scores) if wellness_scores else 0
-    
-    # Mood distribution percentages
-    mood_percentages = {
-        mood: (count / total_employees * 100) if total_employees else 0
-        for mood, count in mood_distribution.items()
-    }
-    
-    # Weekly trend averages
-    weekly_avg = {
-        week: np.mean(scores) if scores else 0
-        for week, scores in weekly_trend.items()
-    }
-    
-    # Mood vs leaves/hours averages
-    mood_leaves_avg = {
-        mood: np.mean(days) if days else 0
-        for mood, days in mood_vs_leaves.items()
-    }
-    
-    mood_hours_avg = {
-        mood: np.mean(hours) if hours else 0
-        for mood, hours in mood_vs_hours.items()
-    }
-    
-    return {
-        "overall_wellness_score": round(avg_wellness, 1),
-        "critical_cases_count": critical_cases,
-        "severe_cases_count": severe_cases,
-        "total_employees_surveyed": total_employees,
-        "overall_mood": max(mood_distribution.items(), key=lambda x: x[1])[0] if mood_distribution else "neutral",
-        "weekly_wellness_trend": weekly_avg,
-        "mood_distribution_percentages": mood_percentages,
-        "mood_vs_leaves_analysis": mood_leaves_avg,
-        "mood_vs_working_hours": mood_hours_avg,
-        "performance_vs_sentiment": {
-            "correlation": np.corrcoef(
-                [x["performance"] for x in performance_vs_sentiment],
-                [x["sentiment"] for x in performance_vs_sentiment]
-            )[0, 1] if performance_vs_sentiment else 0
-        },
-        "last_updated": datetime.utcnow().isoformat() + "Z"
-    }
-    
 @router.get("/get_all_tickets", summary="Get all tickets with pagination")
 async def get_all_tickets(
     current_user: dict = Depends(get_current_user),
@@ -695,3 +562,128 @@ async def set_ticket_status(ticket_id : str , status_update: bool,  current_user
             status_code=500,
             detail=f"Error retrieving tickets: {str(e)}"
         )
+
+# @router.get("/dashboard")
+# async def get_wellness_dashboard(): 
+#     # Get all employee sessions
+#     sessions = await get_employee_sessions()
+    
+#     if not sessions:
+#         return {
+#             "message": "No employee wellness data available",
+#             "data": None
+#         }
+    
+#     # Initialize metrics
+#     wellness_scores = []
+#     mood_distribution = defaultdict(int)
+#     mood_vs_leaves = defaultdict(list)
+#     mood_vs_hours = defaultdict(list)
+#     performance_vs_sentiment = []
+#     critical_cases = 0
+#     severe_cases = 0
+#     weekly_trend = defaultdict(list)
+    
+#     # Current date for weekly calculations
+#     today = datetime.utcnow()
+#     one_week_ago = today - timedelta(days=7)
+    
+#     # Process each employee session
+#     for session in sessions:
+#         # Skip if no wellbeing analysis
+#         if not session.get("intent_data", {}).get("chat_analysis", {}).get("wellbeing_analysis"):
+#             continue
+            
+#         wellbeing = session["intent_data"]["chat_analysis"]["wellbeing_analysis"]
+        
+#         # 1. Collect wellness scores
+#         composite_score = wellbeing.get("composite_score", 0)
+#         wellness_scores.append(composite_score)
+        
+#         # 2. Count critical cases (priority_level 1 or 2)
+#         if wellbeing.get("risk_assessment", {}).get("priority_level", 0) in [1, 2]:
+#             critical_cases += 1
+#             if composite_score < 30:  # Threshold for severe cases
+#                 severe_cases += 1
+        
+#         # 3. Mood distribution (from emotional_valence score)
+#         emotional_score = wellbeing["component_breakdown"]["emotional_valence"]["score"]
+#         if emotional_score > 70:
+#             mood_distribution["happy"] += 1
+#         elif emotional_score > 40:
+#             mood_distribution["neutral"] += 1
+#         else:
+#             mood_distribution["sad"] += 1
+        
+#         # 4. Mood vs leaves (would need leave data - mock implementation)
+#         # In a real implementation, you'd query leave records
+#         mood_vs_leaves[emotional_score > 50 and "positive" or "negative"].append(
+#             session.get("leave_days_this_month", 0)  # Mock value
+#         )
+        
+#         # 5. Mood vs working hours (would need activity data - mock implementation)
+#         mood_vs_hours[emotional_score > 50 and "positive" or "negative"].append(
+#             session.get("avg_weekly_hours", 40)  # Mock value
+#         )
+        
+#         # 6. Performance vs sentiment (would need performance data)
+#         performance = session.get("performance_rating", 3.0)  # Mock value
+#         performance_vs_sentiment.append({
+#             "performance": performance,
+#             "sentiment": emotional_score
+#         })
+        
+#         # 7. Weekly trend (group by week)
+#         session_date = session.get("updated_at", {}).get("$date", today.isoformat())
+#         if isinstance(session_date, str):
+#             session_date = datetime.fromisoformat(session_date.replace("Z", ""))
+        
+#         if session_date >= one_week_ago:
+#             week_key = session_date.strftime("Week %U")
+#             weekly_trend[week_key].append(composite_score)
+    
+#     # Calculate metrics
+#     total_employees = len(wellness_scores)
+#     avg_wellness = np.mean(wellness_scores) if wellness_scores else 0
+    
+#     # Mood distribution percentages
+#     mood_percentages = {
+#         mood: (count / total_employees * 100) if total_employees else 0
+#         for mood, count in mood_distribution.items()
+#     }
+    
+#     # Weekly trend averages
+#     weekly_avg = {
+#         week: np.mean(scores) if scores else 0
+#         for week, scores in weekly_trend.items()
+#     }
+    
+#     # Mood vs leaves/hours averages
+#     mood_leaves_avg = {
+#         mood: np.mean(days) if days else 0
+#         for mood, days in mood_vs_leaves.items()
+#     }
+    
+#     mood_hours_avg = {
+#         mood: np.mean(hours) if hours else 0
+#         for mood, hours in mood_vs_hours.items()
+#     }
+    
+#     return {
+#         "overall_wellness_score": round(avg_wellness, 1),
+#         "critical_cases_count": critical_cases,
+#         "severe_cases_count": severe_cases,
+#         "total_employees_surveyed": total_employees,
+#         "overall_mood": max(mood_distribution.items(), key=lambda x: x[1])[0] if mood_distribution else "neutral",
+#         "weekly_wellness_trend": weekly_avg,
+#         "mood_distribution_percentages": mood_percentages,
+#         "mood_vs_leaves_analysis": mood_leaves_avg,
+#         "mood_vs_working_hours": mood_hours_avg,
+#         "performance_vs_sentiment": {
+#             "correlation": np.corrcoef(
+#                 [x["performance"] for x in performance_vs_sentiment],
+#                 [x["sentiment"] for x in performance_vs_sentiment]
+#             )[0, 1] if performance_vs_sentiment else 0
+#         },
+#         "last_updated": datetime.utcnow().isoformat() + "Z"
+#     }

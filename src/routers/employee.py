@@ -633,6 +633,7 @@ async def add_schedule_entry(entry: ScheduleEntry, current_user: dict = Depends(
         entry_dict = entry.model_dump()
         entry_dict['date'] = entry.date.isoformat()
         entry_dict['employee_id'] = current_user["employee_id"]
+        entry_dict["schedule_id"] = str(uuid.uuid4())[:8]
 
         result = await async_db["schedules"].insert_one(entry_dict)
         return {"message": "Schedule entry added successfully", "id": str(result.inserted_id)}
@@ -641,6 +642,36 @@ async def add_schedule_entry(entry: ScheduleEntry, current_user: dict = Depends(
         raise HTTPException(
             status_code=500,
             detail=f"An error occurred while adding the schedule entry: {str(e)}"
+        )
+        
+@router.delete("/delete_schedule/{schedule_id}", summary="Delete a schedule entry")
+async def delete_schedule(current_user: dict = Depends(get_current_user), schedule_id: str = None):
+    try:
+        if not schedule_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Schedule ID is required for deletion"
+            )
+
+        query = {
+            "schedule_id": schedule_id,
+            "employee_id": current_user["employee_id"]
+        }
+
+        result = await async_db["schedules"].delete_one(query)
+
+        if result.deleted_count == 0:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Schedule entry with ID {schedule_id} not found"
+            )
+
+        return {"message": f"Schedule entry {schedule_id} deleted successfully"}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while deleting the schedule entry: {str(e)}"
         )
     
 @router.get("/projects", summary="Get project details")
