@@ -577,24 +577,6 @@ async def get_employee_summary(current_user: dict = Depends(get_current_user)):
 # Schedules CRUD API
 @router.get("/get_schedules", summary="Get schedules for an employee by month/year")
 async def get_schedules(date: date, current_user: dict = Depends(get_current_user)):
-    """
-    Retrieve schedules for the authenticated employee within a specific month and year.
-
-    Parameters:
-    - date (date): Reference date to determine target month/year (format: YYYY-MM-DD)
-    - current_user (dict): Authenticated user details from JWT token
-
-    Returns:
-    - dict: JSON response containing:
-        - employee_id: Authenticated employee's ID
-        - month: Target month for filtering
-        - year: Target year for filtering
-        - schedules: List of schedule entries in specified month/year
-
-    Raises:
-    - HTTPException 404: If no schedules found for specified period
-    - HTTPException 500: For server errors
-    """
     try:
         employee_id = current_user["employee_id"]
         target_month = date.month
@@ -615,6 +597,8 @@ async def get_schedules(date: date, current_user: dict = Depends(get_current_use
 
         cursor = async_db["schedules"].find(query)
         schedules = await cursor.to_list(length=None)
+        for schedule in schedules:
+            schedule.pop("_id")
 
         if not schedules:
             raise HTTPException(
@@ -637,21 +621,8 @@ async def get_schedules(date: date, current_user: dict = Depends(get_current_use
 
 
 
-@router.post("/add_schedule_entry", summary="Add a new schedule entry")
+@router.post("/add_schedule", summary="Add a new schedule entry")
 async def add_schedule_entry(entry: ScheduleEntry, current_user: dict = Depends(get_current_user)):
-    """
-    Add a new schedule entry to the 'schedules' collection.
-
-    Parameters:
-    - entry: A JSON object containing:
-        - date (date): The date of the schedule entry.
-        - title (str): The title of the schedule entry.
-        - note (str): Additional notes for the schedule entry.
-    - current_user: Authenticated user details from JWT token.
-
-    Returns:
-    - A success message with the ID of the inserted document.
-    """
     try:
         entry_dict = entry.model_dump()
         entry_dict['date'] = entry.date.isoformat()
