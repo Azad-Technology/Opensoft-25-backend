@@ -54,119 +54,119 @@ async def get_employee_dashboard(employee_id: str, current_user: dict = Depends(
                 return "Frustrated"
             return "unknown"
 
-        # Base employee data
-                # Get base employee data from both collections in parallel
-        employee_data, user_data = await asyncio.gather(
-            async_db["onboarding"].find_one({"Employee_ID": employee_id}),
-            async_db["users"].find_one({"employee_id": employee_id})
-        )
+#         # Base employee data
+#                 # Get base employee data from both collections in parallel
+#         employee_data, user_data = await asyncio.gather(
+#             async_db["onboarding"].find_one({"Employee_ID": employee_id}),
+#             async_db["users"].find_one({"employee_id": employee_id})
+#         )
 
-        if not employee_data and not user_data:
-            raise HTTPException(status_code=404, detail="Employee not found")
+#         if not employee_data and not user_data:
+#             raise HTTPException(status_code=404, detail="Employee not found")
 
-        # Determine employee name with fallback logic
-        employee_name = user_data.get('name') if user_data else None
-        employee_email = user_data.get('email') if user_data else None
+#         # Determine employee name with fallback logic
+#         employee_name = user_data.get('name') if user_data else None
+#         employee_email = user_data.get('email') if user_data else None
 
-        # Get all data in parallel
-        leave_data, activity_data, vibe_data, rewards_data, performance_data = await asyncio.gather(
-            async_db["leave"].find({"Employee_ID": employee_id}).to_list(length=None),
-            async_db["activity"].find({"Employee_ID": employee_id}).to_list(length=None),
-            async_db["vibemeter"].find({"Employee_ID": employee_id}).to_list(length=None),
-            async_db["rewards"].find({"Employee_ID": employee_id}).to_list(length=None),
-            async_db["performance"].find({"Employee_ID": employee_id}).to_list(length=None)
-        )
+#         # Get all data in parallel
+#         leave_data, activity_data, vibe_data, rewards_data, performance_data = await asyncio.gather(
+#             async_db["leave"].find({"Employee_ID": employee_id}).to_list(length=None),
+#             async_db["activity"].find({"Employee_ID": employee_id}).to_list(length=None),
+#             async_db["vibemeter"].find({"Employee_ID": employee_id}).to_list(length=None),
+#             async_db["rewards"].find({"Employee_ID": employee_id}).to_list(length=None),
+#             async_db["performance"].find({"Employee_ID": employee_id}).to_list(length=None)
+#         )
 
-        # Process mental states from vibe data
-        mental_states = defaultdict(int)
-        for vibe in vibe_data:
-            state = get_vibe(vibe.get('Vibe_Score'))
-            mental_states[state] += 1
+#         # Process mental states from vibe data
+#         mental_states = defaultdict(int)
+#         for vibe in vibe_data:
+#             state = get_vibe(vibe.get('Vibe_Score'))
+#             mental_states[state] += 1
 
-        # Process weekly communication activity
-        weekly_activity = defaultdict(lambda: defaultdict(int))
-        weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+#         # Process weekly communication activity
+#         weekly_activity = defaultdict(lambda: defaultdict(int))
+#         weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-        # Process activity data (last 10 years)
-        recent_activity = [a for a in activity_data if 
-                         (datetime.now() - a['Date']).days <= 3650] if activity_data else [] 
+#         # Process activity data (last 10 years)
+#         recent_activity = [a for a in activity_data if 
+#                          (datetime.now() - a['Date']).days <= 3650] if activity_data else [] 
 
-        activity_stats = {
-            "teams_messages_sent": int(sum(a['Teams_Messages_Sent'] for a in recent_activity)),
-            "emails_sent": int(sum(a['Emails_Sent'] for a in recent_activity)),
-            "meetings_attended": sum(a['Meetings_Attended'] for a in recent_activity),
-            "work_hours": sum(a['Work_Hours'] for a in recent_activity),
-            "data_points": len(recent_activity)
-        }
+#         activity_stats = {
+#             "teams_messages_sent": int(sum(a['Teams_Messages_Sent'] for a in recent_activity)),
+#             "emails_sent": int(sum(a['Emails_Sent'] for a in recent_activity)),
+#             "meetings_attended": sum(a['Meetings_Attended'] for a in recent_activity),
+#             "work_hours": sum(a['Work_Hours'] for a in recent_activity),
+#             "data_points": len(recent_activity)
+#         }
 
-        # Process weekly communication activity
-        weekly_activity = defaultdict(lambda: defaultdict(int))
-        weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+#         # Process weekly communication activity
+#         weekly_activity = defaultdict(lambda: defaultdict(int))
+#         weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         
-        for activity in activity_data:
-            if 'Date' in activity and isinstance(activity['Date'], datetime):
-                day = weekdays[activity['Date'].weekday()]
-                weekly_activity[day]["teams_messages_sent"] += activity.get('Teams_Messages_Sent', 0)
-                weekly_activity[day]["emails_sent"] += activity.get('Emails_Sent', 0)
-                weekly_activity[day]["meetings_attended"] += activity.get('Meetings_Attended', 0)
-                weekly_activity[day]["work_hours"] += activity.get('Work_Hours', 0)
+#         for activity in activity_data:
+#             if 'Date' in activity and isinstance(activity['Date'], datetime):
+#                 day = weekdays[activity['Date'].weekday()]
+#                 weekly_activity[day]["teams_messages_sent"] += activity.get('Teams_Messages_Sent', 0)
+#                 weekly_activity[day]["emails_sent"] += activity.get('Emails_Sent', 0)
+#                 weekly_activity[day]["meetings_attended"] += activity.get('Meetings_Attended', 0)
+#                 weekly_activity[day]["work_hours"] += activity.get('Work_Hours', 0)
 
-        leave_counts = defaultdict(int)
-        for leave in leave_data:
-            leave_counts[leave['Leave_Type']] += leave['Leave_Days']
+#         leave_counts = defaultdict(int)
+#         for leave in leave_data:
+#             leave_counts[leave['Leave_Type']] += leave['Leave_Days']
 
-        # Calculate communication averages
-        avg_activity = {
-            "teams_messages_sent": round(sum(a.get('Teams_Messages_Sent', 0) for a in activity_data) / len(activity_data), 2) if activity_data else 0,
-            "emails_sent": round(sum(a.get('Emails_Sent', 0) for a in activity_data) / len(activity_data), 2) if activity_data else 0,
-            "meetings_attended": round(sum(a.get('Meetings_Attended', 0) for a in activity_data) / len(activity_data), 2) if activity_data else 0,
-            "work_hours": round(sum(a.get('Work_Hours', 0) for a in activity_data) / len(activity_data), 2) if activity_data else 0
-        }
+#         # Calculate communication averages
+#         avg_activity = {
+#             "teams_messages_sent": round(sum(a.get('Teams_Messages_Sent', 0) for a in activity_data) / len(activity_data), 2) if activity_data else 0,
+#             "emails_sent": round(sum(a.get('Emails_Sent', 0) for a in activity_data) / len(activity_data), 2) if activity_data else 0,
+#             "meetings_attended": round(sum(a.get('Meetings_Attended', 0) for a in activity_data) / len(activity_data), 2) if activity_data else 0,
+#             "work_hours": round(sum(a.get('Work_Hours', 0) for a in activity_data) / len(activity_data), 2) if activity_data else 0
+#         }
 
-        # Process leave data per month
-        leave_per_month = defaultdict(int)
-        for leave in leave_data:
-            if 'Leave_Start_Date' in leave and isinstance(leave['Leave_Start_Date'], datetime):
-                month = leave['Leave_Start_Date'].strftime('%Y-%m')
-                leave_per_month[month] += leave.get('Leave_Days', 0)
+#         # Process leave data per month
+#         leave_per_month = defaultdict(int)
+#         for leave in leave_data:
+#             if 'Leave_Start_Date' in leave and isinstance(leave['Leave_Start_Date'], datetime):
+#                 month = leave['Leave_Start_Date'].strftime('%Y-%m')
+#                 leave_per_month[month] += leave.get('Leave_Days', 0)
 
-        # Process performance rating month-wise
-        perf_per_month = defaultdict(list)
-        for perf in performance_data:
-            if 'Review_Period' in perf:
-                # Assuming Review_Period is in format like "2023-01" or "Jan-2023"
-                month = perf['Review_Period'][-7:]  # Get last 7 chars (for "Jan-2023" format)
-                perf_per_month[month].append(perf.get('Performance_Rating', 0))
+#         # Process performance rating month-wise
+#         perf_per_month = defaultdict(list)
+#         for perf in performance_data:
+#             if 'Review_Period' in perf:
+#                 # Assuming Review_Period is in format like "2023-01" or "Jan-2023"
+#                 month = perf['Review_Period'][-7:]  # Get last 7 chars (for "Jan-2023" format)
+#                 perf_per_month[month].append(perf.get('Performance_Rating', 0))
         
-        # Convert to average performance per month
-        avg_perf_per_month = {
-            month: round(sum(ratings)/len(ratings), 2) 
-            for month, ratings in perf_per_month.items()
-        }
+#         # Convert to average performance per month
+#         avg_perf_per_month = {
+#             month: round(sum(ratings)/len(ratings), 2) 
+#             for month, ratings in perf_per_month.items()
+#         }
 
-        # Process working hours month-wise
-        work_hours_per_month = defaultdict(list)
-        for activity in activity_data:
-            if 'Date' in activity and isinstance(activity['Date'], datetime):
-                month = activity['Date'].strftime('%Y-%m')
-                work_hours_per_month[month].append(activity.get('Work_Hours', 0))
+#         # Process working hours month-wise
+#         work_hours_per_month = defaultdict(list)
+#         for activity in activity_data:
+#             if 'Date' in activity and isinstance(activity['Date'], datetime):
+#                 month = activity['Date'].strftime('%Y-%m')
+#                 work_hours_per_month[month].append(activity.get('Work_Hours', 0))
         
-        avg_work_hours_per_month = {
-            month: round(sum(hours)/len(hours), 2) 
-            for month, hours in work_hours_per_month.items()
-        }
+#         avg_work_hours_per_month = {
+#             month: round(sum(hours)/len(hours), 2) 
+#             for month, hours in work_hours_per_month.items()
+#         }
 
-        # Latest vibe data
-        latest_vibe = None
-        if vibe_data:
-            latest_vibe_data = sorted(vibe_data, key=lambda x: x.get('Response_Date', datetime.min), reverse=True)[0]
-            latest_vibe = {
-                "vibe_score": latest_vibe_data.get('Vibe_Score'),
-                "vibe": get_vibe(latest_vibe_data.get('Vibe_Score')),
-                "response_date": latest_vibe_data.get('Response_Date').isoformat() 
-                    if isinstance(latest_vibe_data.get('Response_Date'), datetime) 
-                    else None
-            }
+#         # Latest vibe data
+#         latest_vibe = None
+#         if vibe_data:
+#             latest_vibe_data = sorted(vibe_data, key=lambda x: x.get('Response_Date', datetime.min), reverse=True)[0]
+#             latest_vibe = {
+#                 "vibe_score": latest_vibe_data.get('Vibe_Score'),
+#                 "vibe": get_vibe(latest_vibe_data.get('Vibe_Score')),
+#                 "response_date": latest_vibe_data.get('Response_Date').isoformat() 
+#                     if isinstance(latest_vibe_data.get('Response_Date'), datetime) 
+#                     else None
+#             }
 
         # Build comprehensive response
         response = {
@@ -202,13 +202,13 @@ async def get_employee_dashboard(employee_id: str, current_user: dict = Depends(
         }
         return JSONResponse(content=response)
     
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error fetching employee dashboard: {str(e)}"
-        )
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=500,
+#             detail=f"Error fetching employee dashboard: {str(e)}"
+#         )
     
 @router.get("/employees/all")
 async def get_all_users(current_user: dict = Depends(get_current_user)):
@@ -415,9 +415,9 @@ async def get_all_users_detailed(current_user: dict = Depends(get_current_user))
 #         )
 
 #         #Process leave counts
-        # leave_counts = defaultdict(int)
-        # for leave in leave_data:
-        #     leave_counts[leave['Leave_Type']] += leave['Leave_Days']
+#         leave_counts = defaultdict(int)
+#         for leave in leave_data:
+#             leave_counts[leave['Leave_Type']] += leave['Leave_Days']
 
 #         # Process mental states from vibe data
 #         mental_states = defaultdict(int)
@@ -425,21 +425,21 @@ async def get_all_users_detailed(current_user: dict = Depends(get_current_user))
 #             state = get_vibe(vibe.get('Vibe_Score'))
 #             mental_states[state] += 1
 
-        # # Process weekly communication activity
-        # weekly_activity = defaultdict(lambda: defaultdict(int))
-        # weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+#         # Process weekly communication activity
+#         weekly_activity = defaultdict(lambda: defaultdict(int))
+#         weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-        # # Process activity data (last 10 years)
-        # recent_activity = [a for a in activity_data if 
-        #                  (datetime.now() - a['Date']).days <= 3650] if activity_data else [] 
+#         # Process activity data (last 10 years)
+#         recent_activity = [a for a in activity_data if 
+#                          (datetime.now() - a['Date']).days <= 3650] if activity_data else [] 
 
-        # activity_stats = {
-        #     "teams_messages_sent": int(sum(a['Teams_Messages_Sent'] for a in recent_activity)),
-        #     "emails_sent": int(sum(a['Emails_Sent'] for a in recent_activity)),
-        #     "meetings_attended": sum(a['Meetings_Attended'] for a in recent_activity),
-        #     "work_hours": sum(a['Work_Hours'] for a in recent_activity),
-        #     "data_points": len(recent_activity)
-        # }
+#         activity_stats = {
+#             "teams_messages_sent": int(sum(a['Teams_Messages_Sent'] for a in recent_activity)),
+#             "emails_sent": int(sum(a['Emails_Sent'] for a in recent_activity)),
+#             "meetings_attended": sum(a['Meetings_Attended'] for a in recent_activity),
+#             "work_hours": sum(a['Work_Hours'] for a in recent_activity),
+#             "data_points": len(recent_activity)
+#         }
         
 #         for activity in activity_data:
 #             if 'Date' in activity and isinstance(activity['Date'], datetime):
