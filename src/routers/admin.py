@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta  # Add timedelta to imports
 from collections import defaultdict
+from typing import Dict
 from fastapi import APIRouter, Depends, HTTPException, Query
 from src.models.auth import OnboardingRequest
 from utils.analysis import get_vibe
@@ -562,6 +563,102 @@ async def set_ticket_status(ticket_id : str , status_update: bool,  current_user
             status_code=500,
             detail=f"Error retrieving tickets: {str(e)}"
         )
+    
+async def get_aggregated_wellness_data() -> Dict[str, Dict[str, any]]:
+    """Get aggregated wellness data (mock implementation - replace with actual DB aggregation)"""
+    # In production, this would use MongoDB aggregation pipeline
+    # Example pipeline would group and calculate metrics directly in database
+    
+    # Mock data structure - replace with actual aggregation query
+    return {
+        "composite_scores": {
+            "average": 62.3,
+            "distribution": {
+                "0-30": 5,   # Severe
+                "31-50": 12,  # At-risk
+                "51-70": 28,  # Moderate
+                "71-100": 15  # Healthy
+            }
+        },
+        "mood_analysis": {
+            "happy": 32,
+            "neutral": 45,
+            "sad": 23
+        },
+        "risk_analysis": {
+            "critical_cases": 8,
+            "severe_cases": 3,
+            "common_risk_factors": [
+                {"factor": "overwhelmed", "count": 27},
+                {"factor": "fatigue", "count": 19},
+                {"factor": "disengagement", "count": 12}
+            ]
+        },
+        "trends": {
+            "weekly_avg_scores": {
+                "Week 12": 58.2,
+                "Week 13": 61.7,
+                "Week 14": 63.1
+            },
+            "monthly_mood_changes": {
+                "happy": +5,  # Percentage point change
+                "neutral": -2,
+                "sad": -3
+            }
+        },
+        "correlations": {
+            "performance_sentiment": 0.42,
+            "hours_wellness": -0.31
+        }
+    }
+
+@router.get("/analytics/hr-wellness-dashboard")
+async def get_hr_wellness_dashboard():
+    """Endpoint for HR dashboard with aggregated, non-PII wellness metrics"""
+    try:
+        # Get pre-aggregated data (implement proper DB aggregation in production)
+        wellness_data = await get_aggregated_wellness_data()
+        
+        # Current date for reporting
+        report_date = datetime.utcnow()
+        
+        # Structure the dashboard response
+        return {
+            "timestamp": report_date.isoformat() + "Z",
+            "summary_metrics": {
+                "average_wellness_score": wellness_data["composite_scores"]["average"],
+                "employee_distribution": wellness_data["composite_scores"]["distribution"],
+                "mood_distribution": {
+                    "happy_percentage": wellness_data["mood_analysis"]["happy"],
+                    "neutral_percentage": wellness_data["mood_analysis"]["neutral"],
+                    "sad_percentage": wellness_data["mood_analysis"]["sad"]
+                },
+                "risk_metrics": {
+                    "employees_at_risk": wellness_data["risk_analysis"]["critical_cases"],
+                    "employees_in_crisis": wellness_data["risk_analysis"]["severe_cases"],
+                    "top_risk_factors": wellness_data["risk_analysis"]["common_risk_factors"][:3]  # Top 3
+                }
+            },
+            "trend_analysis": {
+                "weekly_wellness_trend": wellness_data["trends"]["weekly_avg_scores"],
+                "monthly_mood_changes": wellness_data["trends"]["monthly_mood_changes"]
+            },
+            "insights": {
+                "performance_wellness_correlation": round(wellness_data["correlations"]["performance_sentiment"], 2),
+                "workload_impact": round(wellness_data["correlations"]["hours_wellness"], 2),
+                "alert_levels": {
+                    "red_alert": wellness_data["risk_analysis"]["severe_cases"],
+                    "yellow_alert": wellness_data["risk_analysis"]["critical_cases"] - wellness_data["risk_analysis"]["severe_cases"]
+                }
+            }
+        }
+    
+    except Exception as e:
+        return {
+            "error": "Could not generate wellness dashboard",
+            "details": str(e),
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
 
 # @router.get("/dashboard")
 # async def get_wellness_dashboard(): 
