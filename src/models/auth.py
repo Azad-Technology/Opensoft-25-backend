@@ -3,13 +3,6 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
 
-class UserCreate(BaseModel):
-    email: EmailStr
-    password: str
-    name: str
-    role: str = "employee"  # default role
-    employee_id: str
-
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
@@ -20,3 +13,11 @@ class UserResponse(BaseModel):
     role: str
     employee_id: str
     created_at: datetime
+    
+class OnboardingRequest(BaseModel):
+    role_type: str = "employee"
+    name: str
+    role: str
+    employee_id: str
+    email: EmailStr
+    password: str

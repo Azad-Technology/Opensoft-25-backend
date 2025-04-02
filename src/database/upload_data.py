@@ -1,16 +1,14 @@
 import pandas as pd
-from datetime import datetime
+from datetime import UTC, datetime
+from utils.auth import get_password_hash
 from utils.config import get_async_database
 import asyncio
 from faker import Faker
 
-# Assuming these are your imports
-from src.models.auth import UserCreate
-from src.routers.auth import signup
+async_db = get_async_database()
+fake = Faker()
 
 async def preprocess_and_upload_data():
-    # Initialize database connection
-    async_db = get_async_database()
     
     # Helper function to convert date strings to datetime
     def convert_date(date_str):
@@ -98,47 +96,43 @@ async def preprocess_and_upload_data():
     except Exception as e:
         print(f"Error uploading data: {e}")
 
-fake = Faker()
-
-async def create_bulk_employees():
-    successful_creates = []
-    failed_creates = []
+async def create_hr_users():
     
-    for i in range(1, 501):
-        emp_id = f"EMP{str(i).zfill(4)}"
-        
-        # Create user data
-        user_data = UserCreate(
-            email=f"{emp_id}@deloitte.com",
-            password="root",
-            name=fake.name(),
-            role="employee",
-            employee_id=emp_id
-        )
-        
-        try:
-            # Call signup function directly
-            await signup(user_data)
-            successful_creates.append(emp_id)
-            print(f"Successfully created employee: {emp_id}")
-            
-        except Exception as e:
-            failed_creates.append(emp_id)
-            print(f"Failed to create employee {emp_id}: {str(e)}")
-            
-    # Print summary
-    print("\nCreation Summary:")
-    print(f"Successfully created: {len(successful_creates)} employees")
-    print(f"Failed to create: {len(failed_creates)} employees")
+    hr_data = [
+        {
+            "role_type": "hr",
+            "name": fake.name(),
+            "role": "hr",
+            "employee_id": "HR00001",
+            "email": "HR00001@deloitte.com",
+            "password": get_password_hash("root"),
+            "created_at": datetime.now(UTC),
+            "created_by": "SYSTEM"
+        },
+        {
+            "role_type": "hr",
+            "name": fake.name(),
+            "role": "hr",
+            "employee_id": "HR00002",
+            "email": "HR00002@deloitte.com",
+            "password": get_password_hash("root"),
+            "created_at": datetime.now(UTC),
+            "created_by": "SYSTEM"
+        }
+    ]
     
-    if failed_creates:
-        print("\nFailed Employee IDs:")
-        print(failed_creates)
+    try:
+        for hr in hr_data:
+            result = await async_db.users.insert_one(hr)
+            print(f"Successfully created HR: {hr['employee_id']}")
+            
+    except Exception as e:
+        print(f"Error creating HR users: {str(e)}")
         
         
 if __name__ == "__main__":
     
-    asyncio.run(create_bulk_employees())
+    asyncio.run(create_hr_users())
     
     # Upload data
     # asyncio.run(preprocess_and_upload_data())deloitte.com

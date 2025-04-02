@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from src.models.auth import UserCreate, UserLogin, UserResponse
+from src.models.auth import UserLogin, UserResponse
 from utils.auth import (
     get_password_hash, 
     verify_password, 
@@ -14,41 +14,6 @@ from utils.config import settings
 router = APIRouter()
 logger = setup_logger("src/routers/auth.py")
 async_db = get_async_database()
-
-@router.post("/signup", response_model=UserResponse)
-async def signup(user: UserCreate):
-    try:
-        # Check if user already exists
-        existing_user = await async_db.users.find_one({"email": user.email})
-        if existing_user:
-            raise HTTPException(
-                status_code=400,
-                detail="Email already registered"
-            )
-
-        # Create new user
-        user_data = user.dict()
-        user_data["password"] = get_password_hash(user.password)
-        user_data["created_at"] = datetime.utcnow()
-
-        # Insert into database
-        result = await async_db.users.insert_one(user_data)
-        
-        # Get created user
-        created_user = await async_db.users.find_one({"_id": result.inserted_id})
-        
-        # Remove password from response
-        created_user.pop("password", None)
-        created_user.pop("_id", None)
-        
-        return UserResponse(**created_user)
-
-    except Exception as e:
-        logger.error(f"Error in signup: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error in signup: {str(e)}"
-        )
 
 @router.post("/login")
 async def login(user: UserLogin):

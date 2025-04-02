@@ -105,42 +105,37 @@ async def list_chat_sessions(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Get list of all chat sessions for the user
+    Get latest messages for each chat session of the user
     """
     try:
-        # Get distinct sessions
-        sessions = await async_db.chat_history.aggregate([
+        # Get latest message for each session using MongoDB aggregation
+        latest_messages = await async_db.chat_history.aggregate([
             {
                 "$match": {
                     "employee_id": current_user["employee_id"]
                 }
             },
             {
+                "$sort": {"timestamp": -1}  # Sort by timestamp descending
+            },
+            {
                 "$group": {
                     "_id": "$session_id",
-                    "start_time": {"$min": "$timestamp"},
-                    "last_message": {"$last": "$message"},
-                    "messages_count": {"$sum": 1}
+                    "last_message": {"$first": "$message"},
+                    "timestamp": {"$first": "$timestamp"}
                 }
             },
             {
-                "$sort": {"start_time": -1}
+                "$project": {
+                    "_id": 0,
+                    "session_id": "$_id",
+                    "last_message": 1,
+                    "timestamp": 1
+                }
             }
         ]).to_list(length=None)
 
-        # Get status for each session
-        session_list = []
-        for session in sessions:
-            status = await get_conversation_status(session["_id"])
-            session_list.append({
-                "session_id": session["_id"],
-                "start_time": session["start_time"],
-                "status": status,
-                "last_message": session["last_message"],
-                "messages_count": session["messages_count"]
-            })
-
-        return {"sessions": session_list}
+        return {"sessions": latest_messages}
 
     except Exception as e:
         logger.error(f"Error listing chat sessions: {str(e)}")

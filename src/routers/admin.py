@@ -1,9 +1,10 @@
-from datetime import datetime, timedelta  # Add timedelta to imports
+from datetime import UTC, datetime, timedelta  # Add timedelta to imports
 from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException
+from src.models.auth import OnboardingRequest
 from utils.analysis import get_vibe
 from utils.app_logger import setup_logger
-from utils.auth import get_current_user
+from utils.auth import get_current_user, get_password_hash
 from utils.config import get_async_database
 from fastapi.responses import JSONResponse
 from datetime import datetime
@@ -13,7 +14,7 @@ import asyncio
 
 router = APIRouter()
 async_db = get_async_database()
-logger = setup_logger("src/routers/admin_analysis.py")
+logger = setup_logger("src/routers/admin.py")
 
 @router.get("/{employee_id}/summary")
 async def get_employee_dashboard(employee_id: str, current_user: dict = Depends(get_current_user)):
@@ -577,3 +578,71 @@ async def get_all_users_detailed(current_user: dict = Depends(get_current_user))
 #             status_code=500,
 #             detail=f"Error fetching employee dashboard: {str(e)}"
 #         )
+
+
+@router.post("/add_onboarding")
+async def add_onboarding(
+    request: OnboardingRequest,
+    current_user: dict = Depends(get_current_user)):
+    """
+    Onboard a new employee (HR personnel only)
+    """
+    try:
+        # Verify HR authorization
+        if current_user["role"] != "hr":
+            raise HTTPException(
+                status_code=403,
+                detail="Unauthorized to onboard employees"
+            )
+
+        # Check if employee_id already exists
+        existing_employee = await async_db.users.find_one({"employee_id": request.employee_id})
+        if existing_employee:
+            raise HTTPException(
+                status_code=400,
+                detail="Employee ID already exists"
+            )
+
+        # Check if email already exists
+        existing_email = await async_db.users.find_one({"email": request.email})
+        if existing_email:
+            raise HTTPException(
+                status_code=400,
+                detail="Email already registered"
+            )
+
+        # Create user data
+        user_data = {
+            "role_type": request.role_type,
+            "name": request.name,
+            "role": request.role,
+            "employee_id": request.employee_id,
+            "email": request.email,
+            "password": get_password_hash(request.password),
+            "created_at": datetime.now(UTC),
+            "created_by": current_user["employee_id"]
+        }
+
+        # Insert into database
+        result = await async_db.users.insert_one(user_data)
+        
+        # Create onboarding record
+        onboarding_data = {
+            "name": request.name,
+            "employee_id": request.employee_id,
+            "onboarded_by": current_user["employee_id"],
+            "initial_role": request.role,
+            "member_type": request.role_type,
+            "email": request.email,
+        }
+
+        return JSONResponse(content=onboarding_data)
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Error in onboarding: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred during onboarding"
+        )
