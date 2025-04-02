@@ -13,7 +13,7 @@ import asyncio
 
 router = APIRouter()
 async_db = get_async_database()
-logger = setup_logger("src/routers/employee_analysis.py")
+logger = setup_logger("src/routers/employee.py")
 
 @router.get("/vibescore-trend", summary="Get vibe score trends over time")
 async def get_vibescore_trend(time_period: str = "monthly", limit: int = 12):
