@@ -41,3 +41,8 @@ class ScheduleEntry(BaseModel):
     date: date
     title: str
     note: str
+
+class TicketEntry(BaseModel):
+    title: str
+    description: str
+
