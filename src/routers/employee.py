@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, List, Any, Optional
+from src.models.dataset import ScheduleEntry
 from utils.analysis import get_vibe
 from utils.app_logger import setup_logger
 from utils.auth import get_current_user
@@ -595,33 +596,23 @@ async def get_schedules(date: date, current_user: dict = Depends(get_current_use
     - HTTPException 500: For server errors
     """
     try:
-        # Extract employee_id from current_user
         employee_id = current_user["employee_id"]
-
-        # Extract the target month and year from the provided date
         target_month = date.month
         target_year = date.year
-
-        # Calculate the start and end dates for the target month/year
-        start_date = date.replace(day=1)  # First day of the month
+        start_date = date.replace(day=1)
         if target_month == 12:
-            # Handle December (next month is January of next year)
             end_date = date.replace(year=target_year + 1, month=1, day=1)
         else:
-            # First day of the next month
             end_date = date.replace(month=target_month + 1, day=1)
 
-        # Convert dates to strings in YYYY-MM-DD format (to match MongoDB storage format)
         start_date_str = start_date.isoformat()
         end_date_str = end_date.isoformat()
 
-        # MongoDB query using range operators
         query = {
             "employee_id": employee_id,
             "date": {"$gte": start_date_str, "$lt": end_date_str}
         }
 
-        # Query MongoDB for schedules within the specified range
         cursor = async_db["schedules"].find(query)
         schedules = await cursor.to_list(length=None)
 
@@ -644,10 +635,7 @@ async def get_schedules(date: date, current_user: dict = Depends(get_current_use
             detail=f"Error retrieving schedules: {str(e)}"
         )
 
-class ScheduleEntry(BaseModel):
-    date: date
-    title: str
-    note: str
+
 
 @router.post("/add_schedule_entry", summary="Add a new schedule entry")
 async def add_schedule_entry(entry: ScheduleEntry, current_user: dict = Depends(get_current_user)):
@@ -665,17 +653,11 @@ async def add_schedule_entry(entry: ScheduleEntry, current_user: dict = Depends(
     - A success message with the ID of the inserted document.
     """
     try:
-        # Convert Pydantic model to dictionary for MongoDB insertion
         entry_dict = entry.model_dump()
-
-        # Explicitly store only the date part (ISO format) as a string
         entry_dict['date'] = entry.date.isoformat()
         entry_dict['employee_id'] = current_user["employee_id"]
 
-        # Insert the document into the 'schedules' collection
         result = await async_db["schedules"].insert_one(entry_dict)
-
-        # Return success response with inserted document ID
         return {"message": "Schedule entry added successfully", "id": str(result.inserted_id)}
 
     except Exception as e:
