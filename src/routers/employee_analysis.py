@@ -526,22 +526,24 @@ async def get_employee_summary(current_user: dict = Depends(get_current_user)):
         
         # Process rewards data
         awards = []
-        for reward in rewards_data:
-            award_info = {
-                "type": reward.get('Award_Type'),
-                "date": reward.get('Award_Date').isoformat() 
-                    if isinstance(reward.get('Award_Date'), datetime) 
-                    else None,
-                "reward_points": reward.get('Reward_Points'),
-            }
-            if award_info['award_type']:  # Only include if award_type exists
-                awards.append(award_info)
+        if rewards_data:
+            for reward in rewards_data:
+                award_info = {
+                    "type": reward.get('Award_Type'),
+                    "date": reward.get('Award_Date').isoformat() 
+                        if isinstance(reward.get('Award_Date'), datetime) 
+                        else None,
+                    "reward_points": reward.get('Reward_Points'),
+                }
+                if award_info['award_type']:  # Only include if award_type exists
+                    awards.append(award_info)
 
         # Process leave data
         leave_counts = defaultdict(int)
-        for leave in leave_data:
-            leave_type = leave.get('Leave_Type', 'other').lower().replace(' ', '_')
-            leave_counts[leave_type] += leave.get('Leave_Days', 0)
+        if leave_data:
+            for leave in leave_data:
+                leave_type = leave.get('Leave_Type', 'other').lower().replace(' ', '_')
+                leave_counts[leave_type] += leave.get('Leave_Days', 0)
 
         # Build response
         response = {
@@ -553,7 +555,7 @@ async def get_employee_summary(current_user: dict = Depends(get_current_user)):
             "total_work_hours": round(total_work_hours, 2),
             "average_work_hours": round(average_work_hours, 2),
             "awards": awards,
-            "activity_level": activities,
+            # "activity_level": activities,
             "overall_activity_level": {
                 "teams_messages_sent": int(sum(a.get('Teams_Messages_Sent', 0) for a in recent_activity)),
                 "emails_sent": int(sum(a.get('Emails_Sent', 0) for a in recent_activity)),

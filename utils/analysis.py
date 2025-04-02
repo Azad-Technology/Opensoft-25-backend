@@ -10,4 +10,4 @@ def get_vibe(score):
     elif score>1.5 and score<=2.5:
         return "Sad"
     elif score>=0 and score<=1.5:
-        return "Frustated"
+        return "Frustrated"
