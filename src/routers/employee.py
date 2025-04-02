@@ -566,7 +566,7 @@ async def get_employee_summary(current_user: dict = Depends(get_current_user)):
             "total_work_hours": round(total_work_hours, 2),
             "average_work_hours": round(average_work_hours, 2),
             "awards": awards,
-            # "activity_level": activities,
+            "activity_level": activities,
             "overall_activity_level": {
                 "teams_messages_sent": int(sum(a.get('Teams_Messages_Sent', 0) for a in recent_activity)),
                 "emails_sent": int(sum(a.get('Emails_Sent', 0) for a in recent_activity)),
@@ -645,6 +645,41 @@ async def add_schedule_entry(entry: ScheduleEntry, current_user: dict = Depends(
             status_code=500,
             detail=f"An error occurred while adding the schedule entry: {str(e)}"
         )
+    
+@router.get("/projects", summary="Get project details")
+def get_project_details():
+    return [
+    {
+      'id': '1',
+      'name': 'Website Redesign',
+      'priority': 'high',
+      'status': 'in-progress',
+      'startDate': '2024-03-01',
+      'endDate': '2024-04-15',
+      'progress': '65',
+      'assignees': ['Sarah J.', 'Michael C.'],
+    },
+    {
+      'id': '2',
+      'name': 'Mobile App Development',
+      'priority': 'medium',
+      'status': 'not-started',
+      'startDate': '2024-04-01',
+      'endDate': '2024-06-30',
+      'progress': '0',
+      'assignees': ['Emily D.', 'John S.'],
+    },
+    {
+      'id': '3',
+      'name': 'Data Migration',
+      'priority': 'low',
+      'status': 'completed',
+      'startDate': '2024-02-15',
+      'endDate': '2024-03-15',
+      'progress': '100',
+      'assignees': ['Robert K.', 'Lisa M.'],
+    }
+    ]
     
 # Help & Support APIs
 @router.get("/get_employee_tickets", summary="Get tickets created by an employee")
