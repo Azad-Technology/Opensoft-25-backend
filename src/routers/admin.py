@@ -660,11 +660,11 @@ async def get_all_tickets(
     page_size: int = Query(10, gt=0, le=100, description="Number of items per page (max 100)")
 ):
     try:
-        # if current_user.get("role") != "hr":
-        #     raise HTTPException(
-        #         status_code=403,
-        #         detail="Unauthorized to access tickets"
-        #     )
+        if current_user.get("role") != "hr":
+            raise HTTPException(
+                status_code=403,
+                detail="Unauthorized to access tickets"
+            )
 
         skip = (page - 1) * page_size
         total_tickets = await async_db["tickets"].count_documents({})
@@ -681,7 +681,7 @@ async def get_all_tickets(
         tickets = await cursor.to_list(length=page_size)
 
         for ticket in tickets:
-            ticket["_id"] = str(ticket["_id"])
+            ticket.pop("_id")
 
         return {
             "data": tickets,
@@ -704,7 +704,7 @@ async def get_all_tickets(
         )
     
 @router.post("/set_ticket_status", summary="Set the status of a ticket")
-async def get_all_tickets(ticket_id : str , status_update: bool,  current_user: dict = Depends(get_current_user)):
+async def set_ticket_status(ticket_id : str , status_update: bool,  current_user: dict = Depends(get_current_user)):
     try:
         if current_user["role"] != "hr":
             raise HTTPException(
@@ -712,7 +712,7 @@ async def get_all_tickets(ticket_id : str , status_update: bool,  current_user: 
                 detail="Unauthorized to resolve or unresolve tickets"
             )
 
-        ticket = await async_db["tickets"].find_one({"_id": ticket_id})
+        ticket = await async_db["tickets"].find_one({"ticket_id": ticket_id})
         if not ticket:
             raise HTTPException(
                 status_code=404,
@@ -720,14 +720,19 @@ async def get_all_tickets(ticket_id : str , status_update: bool,  current_user: 
             )
         
         update_result = await async_db["tickets"].update_one(
-            {"_id": ticket_id},
+            {"ticket_id": ticket_id},
             {
                 "$set": {
                     "is_resolved": status_update,
+                    "update_at" : datetime.now().timestamp()
                 }
             }
         )
-        return f"Ticket {ticket_id} updated successfully"
+        return {
+            "ticket_id" : ticket_id,
+            "new_status" : status_update,
+            "response": f"Ticket:{ticket_id} updated successfully"
+        }
 
     except Exception as e:
         raise HTTPException(

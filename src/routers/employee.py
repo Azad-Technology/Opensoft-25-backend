@@ -654,6 +654,9 @@ async def get_employee_tickets(current_user: dict = Depends(get_current_user)):
                 status_code=404,
                 detail=f"No tickets found for employee {employee_id}"
             )
+        
+        for ticket in tickets:
+            ticket.pop("_id")
 
         return {
             "employee_id": employee_id,
@@ -671,11 +674,11 @@ async def get_employee_tickets(current_user: dict = Depends(get_current_user)):
 async def add_ticket(entry: TicketEntry, current_user: dict = Depends(get_current_user)):
     try:
         entry_dict = entry.model_dump()
-        entry_dict['date'] = date.today().isoformat()
+        entry_dict['date'] = datetime.now().timestamp()
         entry_dict['employee_id'] = current_user["employee_id"]
         entry_dict['employee_name'] = current_user["name"]
         entry_dict['is_resolved'] = False
-        entry_dict['_id'] = short_id = str(uuid.uuid4())[:8]
+        entry_dict['ticket_id'] = str(uuid.uuid4())[:8]
 
         result = await async_db["tickets"].insert_one(entry_dict)
         return {"message": "Ticket entry added successfully", "id": str(result.inserted_id)}
