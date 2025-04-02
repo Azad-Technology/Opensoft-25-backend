@@ -30,7 +30,6 @@ MOCK_DATA = {
     ]
 }
 
-
 @router.get("/profile")
 async def get_profile(
     current_user: dict = Depends(get_current_user)

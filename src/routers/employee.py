@@ -478,7 +478,7 @@ async def get_employee_summary(current_user: dict = Depends(get_current_user)):
             async_db["leave"].find({"Employee_ID": employee_id}).to_list(length=None)
         )
 
-        latest_vibe = None
+        latest_vibe = {}
         if vibe_data:
             latest_vibe = {
                     "vibe_score": vibe_data[0].get("Vibe_Score"),
@@ -611,11 +611,8 @@ async def get_schedules(date: date, current_user: dict = Depends(get_current_use
             schedule.pop("_id")
 
         if not schedules:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No schedules found for employee {employee_id} in {target_month}/{target_year}"
-            )
-
+            schedules = []
+            
         return {
             "employee_id": employee_id,
             "month": target_month,

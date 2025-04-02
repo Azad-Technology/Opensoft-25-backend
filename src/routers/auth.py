@@ -1,14 +1,12 @@
 from fastapi import APIRouter, HTTPException, Depends
-from src.models.auth import UserLogin, UserResponse
+from src.models.auth import UserLogin
 from utils.auth import (
-    get_password_hash, 
     verify_password, 
     create_access_token, 
     get_current_user
 )
 from utils.config import get_async_database
 from utils.app_logger import setup_logger
-from datetime import datetime
 from utils.config import settings
 
 router = APIRouter()
