@@ -152,6 +152,5 @@ async def create_hr_users():
 
 if __name__ == "__main__":
     asyncio.run(create_hr_users())
-
     # Upload data
     # asyncio.run(preprocess_and_upload_data())deloitte.com
