@@ -99,37 +99,6 @@ async def get_intent_data(session_id: str) -> Dict:
     except Exception as e:
         logger.error(f"[Session: {session_id}] Error retrieving intent data: {str(e)}")
         return {}
-    
-async def save_conversation_status(session_id: str, status: str) -> bool:
-    logger.info(f"[Session: {session_id}] Saving conversation status: {status}")
-    try:
-        await async_db.conversation_status.update_one(
-            {"session_id": session_id},
-            {"$set": {
-                "status": status,
-                "updated_at": datetime.now(timezone.utc)
-            }},
-            upsert=True
-        )
-        logger.info(f"[Session: {session_id}] Successfully saved conversation status")
-        return True
-    except Exception as e:
-        logger.error(f"[Session: {session_id}] Error saving conversation status: {str(e)}")
-        return False
-
-async def get_conversation_status(session_id: str) -> str:
-    logger.info(f"[Session: {session_id}] Retrieving conversation status")
-    try:
-        status_doc = await async_db.conversation_status.find_one(
-            {"session_id": session_id},
-            {"_id": 0, "status": 1}
-        )
-        status = status_doc.get("status", "new") if status_doc else "new"
-        logger.info(f"[Session: {session_id}] Current conversation status: {status}")
-        return status
-    except Exception as e:
-        logger.error(f"[Session: {session_id}] Error retrieving conversation status: {str(e)}")
-        return "new"
 
 async def extract_intent_from_employee(employee_profile, session_id: str):
     logger.info(f"[Session: {session_id}] Starting intent extraction from employee profile")
@@ -413,7 +382,6 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             not current_tag or 
             number >= len(intent_data["tags"])):
             logger.info(f"[Session: {session_id}] Conversation complete - Limits reached")
-            await save_conversation_status(session_id, "complete")
             final_analysis = await final_chat_analysis(session_id, chat_history, intent_data)
             intent_data["chat_completed"] = True
             intent_data["chat_analysis"] = final_analysis
@@ -449,7 +417,6 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
         # Check if conversation should end after analysis
         if number >= len(intent_data["tags"]):
             logger.info(f"[Session: {session_id}] Conversation complete - Analysis based")
-            await save_conversation_status(session_id, "complete")
             final_analysis = await final_chat_analysis(session_id, chat_history, intent_data)
             intent_data["chat_completed"] = True
             intent_data["chat_analysis"] = final_analysis

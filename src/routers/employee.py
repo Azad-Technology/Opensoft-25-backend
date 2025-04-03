@@ -352,10 +352,10 @@ async def submit_vibe(
 
             # Check if latest submission was on the same day (IST)
             if latest_vibe_ist.date() == current_ist.date():
-                return {
-                    "status": "error",
-                    "message": f"You have already submitted your vibe score today at {latest_vibe_ist.strftime('%I:%M %p IST')}"
-                }
+                raise HTTPException(
+                    status_code=400,
+                    detail="Vibe score already submitted today"
+                )
 
         # Create new submission
         vibe_data = {
