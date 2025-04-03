@@ -154,6 +154,7 @@ async def get_employee_summary(current_user: dict = Depends(get_current_user)):
                 response["all_leaves"] = leave_info
                 response["leave_balance"] = 20 - sum(leave_counts.values())  # Assuming 20 is total leave balance
                 response["projects"] = get_project_details()
+                response["is_chat_required"] = True
             except Exception as e:
                 logger.error(f"Error processing leave data: {str(e)}")
 
