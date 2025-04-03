@@ -306,13 +306,7 @@ FINAL_CHAT_ANALYSIS_SYSTEM_PROMPT = """You are an expert HR analysis AI from Del
       }
     },
     "risk_assessment": {
-      "priority_level": 1-3, // 1=Urgent, 2=Moderate, 3=Low. MUST be 1 if high-severity flags.
-      "critical_flags": ["list", "of", "flags", "(e.g., Safety: Mention of self-harm, Policy: Harassment mentioned)"],
-      "policy_conduct_concerns": {
-         "concern_detected": boolean,
-         "details": "Brief, anonymized description of policy/conduct concern if detected" // Empty string if false
-       },
-      "recommended_support_actions": ["list", "of", "actions", "e.g., Immediate EAP Referral & HR Notification"]
+      "priority_level": 1-3, // 1=Urgent, 2=Moderate, 3=Low. MUST be 1 if high-severity flags
     }
   }
 }

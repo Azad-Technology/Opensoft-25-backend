@@ -1,7 +1,7 @@
 import random
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, List, Any, Optional
-from utils.analysis import get_vibe
+from utils.analysis import MOCK_DATA, get_vibe
 from utils.app_logger import setup_logger
 from utils.auth import get_current_user
 from utils.config import get_async_database
@@ -15,20 +15,6 @@ import asyncio
 router = APIRouter()
 async_db = get_async_database()
 logger = setup_logger("src/routers/common.py")
-
-MOCK_DATA = {
-    "departments": ["Technology Consulting", "Strategy & Operations", "Risk Advisory", "Financial Advisory"],
-    "locations": ["New York", "London", "Singapore", "Mumbai", "Sydney"],
-    "managers": ["Jane Smith", "Michael Johnson", "Sarah Williams", "David Chen"],
-    "skills": [
-        "Cloud Architecture", "Digital Transformation", "Project Management", "Solution Design",
-        "Data Analytics", "AI/ML", "Blockchain", "Cybersecurity"
-    ],
-    "certifications": [
-        "AWS Certified Solutions Architect", "Certified Scrum Master", "ITIL Foundation", "PMP",
-        "Google Cloud Professional", "Azure Solutions Architect", "CISSP", "Six Sigma Black Belt"
-    ]
-}
 
 @router.get("/profile")
 async def get_profile(

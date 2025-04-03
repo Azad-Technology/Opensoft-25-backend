@@ -22,7 +22,7 @@ async def get_root():
     return {"message": "Welcome to the Admin API"}
 
 @router.get("/{employee_id}/summary")
-async def get_employee_dashboard(employee_id: str, current_user: dict = Depends(get_current_user)):
+async def get_employee_summary(employee_id: str, current_user: dict = Depends(get_current_user)):
     try:
         
         if current_user["role_type"] != "hr":
@@ -225,6 +225,8 @@ async def get_employee_dashboard(employee_id: str, current_user: dict = Depends(
                     if isinstance(latest_vibe_data.get('Response_Date'), datetime) 
                     else None
             }
+            
+        
 
         # Build comprehensive response
         response = {
@@ -256,7 +258,9 @@ async def get_employee_dashboard(employee_id: str, current_user: dict = Depends(
             },
             "performance": process_doc(performance_data[0]) if performance_data else None,
             "performance_rating_month_wise": avg_perf_per_month,
-            "working_hours_month_wise": avg_work_hours_per_month
+            "working_hours_month_wise": avg_work_hours_per_month,
+            "intent_analysis": {},
+            "post_chat_analysis": {}
         }
         return JSONResponse(content=response)
     
@@ -269,42 +273,71 @@ async def get_employee_dashboard(employee_id: str, current_user: dict = Depends(
         )
     
 @router.get("/employees/all")
-async def get_all_users(current_user: dict = Depends(get_current_user)):
-    """
-    Fetch details of all users in the system.
-    Returns:
-        - Basic user information
-        - Onboarding status
-        - Activity summary
-    """
+async def get_all_employees(current_user: dict = Depends(get_current_user)):
     try:
-        # Get all users in parallel
-        users_data, onboarding_data = await asyncio.gather(
+        # Get all data in parallel
+        users_data, vibe_data, leave_data = await asyncio.gather(
             async_db["users"].find().to_list(length=None),
-            async_db["onboarding"].find().to_list(length=None)
+            async_db["vibemeter"].find().sort("Response_Date", -1).to_list(length=None),
+            async_db["leave"].find().to_list(length=None)
         )
+        
+        # Create vibe mapping (get latest vibe for each employee)
+        vibe_map = {}
+        for vibe in vibe_data:
+            emp_id = vibe.get("Employee_ID")
+            if emp_id and emp_id not in vibe_map:
+                vibe_map[emp_id] = {
+                    "vibe_score": vibe.get("Vibe_Score"),
+                    "response_date": vibe.get("Response_Date").isoformat() 
+                        if isinstance(vibe.get("Response_Date"), datetime) 
+                        else None
+                }
 
-        # Create mapping of employee_id to onboarding data
-        onboarding_map = {o["Employee_ID"]: o for o in onboarding_data if "Employee_ID" in o}
+        # Create leave mapping (total leaves for each employee)
+        leave_map = {}
+        current_year = datetime.now().year
+        for leave in leave_data:
+            emp_id = leave.get("Employee_ID")
+            leave_date = leave.get("Leave_Start_Date")
+            
+            # Only count leaves for current year
+            if emp_id and isinstance(leave_date, datetime) and leave_date.year == current_year:
+                if emp_id not in leave_map:
+                    leave_map[emp_id] = {
+                        "total_leaves": 0,
+                        "leave_types": defaultdict(int)
+                    }
+                leave_days = leave.get("Leave_Days", 0)
+                leave_map[emp_id]["total_leaves"] += leave_days
+                leave_map[emp_id]["leave_types"][leave.get("Leave_Type", "Other")] += leave_days
 
         # Process each user
         processed_users = []
         for user in users_data:
-            employee_id = user.get("employee_id")
-            onboarding = onboarding_map.get(employee_id, {})
-            
-            processed_users.append({
-                "employee_id": employee_id,
-                "email": user.get("email"),
-                "name": user.get("name", onboarding.get("Employee_Name")),
-                "role": user.get("role", onboarding.get("Designation")),
-                "department": onboarding.get("Department"),
-                "joining_date": onboarding.get("Joining_Date", "").isoformat() 
-                    if isinstance(onboarding.get("Joining_Date"), datetime) 
-                    else None,
-                "onboarding_completed": onboarding.get("Onboarding_Completed", False),
-                "account_active": user.get("is_active", True)
-            })
+            try:
+                employee_id = user.get("employee_id")
+                vibe_info = vibe_map.get(employee_id, {})
+                leave_info = leave_map.get(employee_id, {"total_leaves": 0, "leave_types": {}})
+                
+                processed_users.append({
+                    "employee_id": employee_id,
+                    "email": user.get("email"),
+                    "name": user.get("name"),
+                    "role": user.get("role", "employee"),
+                    "current_vibe": {
+                        "score": vibe_info.get("vibe_score"),
+                        "last_response": vibe_info.get("response_date")
+                    },
+                    "leaves":leave_info["total_leaves"],
+                    "risk_assessment": "High" 
+                })
+            except Exception as e:
+                logger.error(f"Error processing user {user.get('employee_id')}: {str(e)}")
+                continue
+
+        # Sort by employee_id
+        processed_users.sort(key=lambda x: x["employee_id"])
 
         return JSONResponse(content={
             "count": len(processed_users),
@@ -317,98 +350,6 @@ async def get_all_users(current_user: dict = Depends(get_current_user)):
             status_code=500,
             detail=f"Error fetching user list: {str(e)}"
         )
-    
-@router.get("/employees/all-detailed")
-async def get_all_users_detailed(current_user: dict = Depends(get_current_user)):
-
-    try:
-        # Get all data in parallel
-        users_data, onboarding_data, activity_data, vibe_data, performance_data = await asyncio.gather(
-            async_db["users"].find().to_list(length=None),
-            async_db["onboarding"].find().to_list(length=None),
-            async_db["activity"].find().to_list(length=None),
-            async_db["vibemeter"].find().to_list(length=None),
-            async_db["performance"].find().to_list(length=None)
-        )
-
-        # Create mappings for faster lookup
-        onboarding_map = {o["Employee_ID"]: o for o in onboarding_data if "Employee_ID" in o}
-        activity_map = defaultdict(list)
-        for a in activity_data:
-            if "Employee_ID" in a:
-                activity_map[a["Employee_ID"]].append(a)
-        
-        vibe_map = {}
-        for v in vibe_data:
-            if "Employee_ID" in v:
-                # Keep only the latest vibe per employee
-                if v["Employee_ID"] not in vibe_map or (
-                    "Response_Date" in v and 
-                    (v["Employee_ID"] not in vibe_map or 
-                     v["Response_Date"] > vibe_map[v["Employee_ID"]].get("Response_Date", datetime.min))
-                ):
-                    vibe_map[v["Employee_ID"]] = v
-        
-        performance_map = {}
-        for p in performance_data:
-            if "Employee_ID" in p:
-                # Keep only the latest performance review
-                if p["Employee_ID"] not in performance_map or (
-                    "Review_Date" in p and 
-                    (p["Employee_ID"] not in performance_map or 
-                     p["Review_Date"] > performance_map[p["Employee_ID"]].get("Review_Date", datetime.min))
-                ):
-                    performance_map[p["Employee_ID"]] = p
-
-        # Process each user
-        processed_users = []
-        for user in users_data:
-            employee_id = user.get("employee_id")
-            onboarding = onboarding_map.get(employee_id, {})
-            activities = activity_map.get(employee_id, [])
-            latest_vibe = vibe_map.get(employee_id)
-            latest_perf = performance_map.get(employee_id)
-            
-            # Calculate activity summaries
-            recent_activities = [a for a in activities 
-                               if "Date" in a and 
-                               (datetime.now() - a["Date"]).days <= 30]  # Last 30 days
-            
-            activity_summary = {
-                "teams_messages": sum(a.get("Teams_Messages_Sent", 0) for a in recent_activities),
-                "emails_sent": sum(a.get("Emails_Sent", 0) for a in recent_activities),
-                "meetings_attended": sum(a.get("Meetings_Attended", 0) for a in recent_activities),
-                "avg_work_hours": round(sum(a.get("Work_Hours", 0) for a in recent_activities) / len(recent_activities), 2) 
-                    if recent_activities else 0
-            }
-            
-            processed_users.append({
-                "employee_id": employee_id,
-                "email": user.get("email"),
-                "name": user.get("name", onboarding.get("Employee_Name")),
-                "role": user.get("role", onboarding.get("Designation")),
-                "department": onboarding.get("Department"),
-                "status": "Active" if user.get("is_active", True) else "Inactive",
-                "onboarding_status": "Completed" if onboarding.get("Onboarding_Completed") else "Pending",
-                "last_activity": max(a["Date"] for a in activities).isoformat() 
-                    if activities else None,
-                "current_vibe": get_vibe(latest_vibe.get("Vibe_Score")) if latest_vibe else None,
-                "performance_rating": latest_perf.get("Performance_Rating") if latest_perf else None,
-                # "recent_activity": activity_summary
-            })
-
-        return JSONResponse(content={
-            "count": len(processed_users),
-            "users": sorted(processed_users, key=lambda x: x["name"] if x["name"] else "")
-        })
-
-    except Exception as e:
-        logger.error(f"Error fetching detailed user list: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error fetching user details: {str(e)}"
-        )
-
 
 @router.post("/add_onboarding")
 async def add_onboarding(
@@ -659,128 +600,3 @@ async def get_hr_wellness_dashboard():
             "details": str(e),
             "timestamp": datetime.utcnow().isoformat() + "Z"
         }
-
-# @router.get("/dashboard")
-# async def get_wellness_dashboard(): 
-#     # Get all employee sessions
-#     sessions = await get_employee_sessions()
-    
-#     if not sessions:
-#         return {
-#             "message": "No employee wellness data available",
-#             "data": None
-#         }
-    
-#     # Initialize metrics
-#     wellness_scores = []
-#     mood_distribution = defaultdict(int)
-#     mood_vs_leaves = defaultdict(list)
-#     mood_vs_hours = defaultdict(list)
-#     performance_vs_sentiment = []
-#     critical_cases = 0
-#     severe_cases = 0
-#     weekly_trend = defaultdict(list)
-    
-#     # Current date for weekly calculations
-#     today = datetime.utcnow()
-#     one_week_ago = today - timedelta(days=7)
-    
-#     # Process each employee session
-#     for session in sessions:
-#         # Skip if no wellbeing analysis
-#         if not session.get("intent_data", {}).get("chat_analysis", {}).get("wellbeing_analysis"):
-#             continue
-            
-#         wellbeing = session["intent_data"]["chat_analysis"]["wellbeing_analysis"]
-        
-#         # 1. Collect wellness scores
-#         composite_score = wellbeing.get("composite_score", 0)
-#         wellness_scores.append(composite_score)
-        
-#         # 2. Count critical cases (priority_level 1 or 2)
-#         if wellbeing.get("risk_assessment", {}).get("priority_level", 0) in [1, 2]:
-#             critical_cases += 1
-#             if composite_score < 30:  # Threshold for severe cases
-#                 severe_cases += 1
-        
-#         # 3. Mood distribution (from emotional_valence score)
-#         emotional_score = wellbeing["component_breakdown"]["emotional_valence"]["score"]
-#         if emotional_score > 70:
-#             mood_distribution["happy"] += 1
-#         elif emotional_score > 40:
-#             mood_distribution["neutral"] += 1
-#         else:
-#             mood_distribution["sad"] += 1
-        
-#         # 4. Mood vs leaves (would need leave data - mock implementation)
-#         # In a real implementation, you'd query leave records
-#         mood_vs_leaves[emotional_score > 50 and "positive" or "negative"].append(
-#             session.get("leave_days_this_month", 0)  # Mock value
-#         )
-        
-#         # 5. Mood vs working hours (would need activity data - mock implementation)
-#         mood_vs_hours[emotional_score > 50 and "positive" or "negative"].append(
-#             session.get("avg_weekly_hours", 40)  # Mock value
-#         )
-        
-#         # 6. Performance vs sentiment (would need performance data)
-#         performance = session.get("performance_rating", 3.0)  # Mock value
-#         performance_vs_sentiment.append({
-#             "performance": performance,
-#             "sentiment": emotional_score
-#         })
-        
-#         # 7. Weekly trend (group by week)
-#         session_date = session.get("updated_at", {}).get("$date", today.isoformat())
-#         if isinstance(session_date, str):
-#             session_date = datetime.fromisoformat(session_date.replace("Z", ""))
-        
-#         if session_date >= one_week_ago:
-#             week_key = session_date.strftime("Week %U")
-#             weekly_trend[week_key].append(composite_score)
-    
-#     # Calculate metrics
-#     total_employees = len(wellness_scores)
-#     avg_wellness = np.mean(wellness_scores) if wellness_scores else 0
-    
-#     # Mood distribution percentages
-#     mood_percentages = {
-#         mood: (count / total_employees * 100) if total_employees else 0
-#         for mood, count in mood_distribution.items()
-#     }
-    
-#     # Weekly trend averages
-#     weekly_avg = {
-#         week: np.mean(scores) if scores else 0
-#         for week, scores in weekly_trend.items()
-#     }
-    
-#     # Mood vs leaves/hours averages
-#     mood_leaves_avg = {
-#         mood: np.mean(days) if days else 0
-#         for mood, days in mood_vs_leaves.items()
-#     }
-    
-#     mood_hours_avg = {
-#         mood: np.mean(hours) if hours else 0
-#         for mood, hours in mood_vs_hours.items()
-#     }
-    
-#     return {
-#         "overall_wellness_score": round(avg_wellness, 1),
-#         "critical_cases_count": critical_cases,
-#         "severe_cases_count": severe_cases,
-#         "total_employees_surveyed": total_employees,
-#         "overall_mood": max(mood_distribution.items(), key=lambda x: x[1])[0] if mood_distribution else "neutral",
-#         "weekly_wellness_trend": weekly_avg,
-#         "mood_distribution_percentages": mood_percentages,
-#         "mood_vs_leaves_analysis": mood_leaves_avg,
-#         "mood_vs_working_hours": mood_hours_avg,
-#         "performance_vs_sentiment": {
-#             "correlation": np.corrcoef(
-#                 [x["performance"] for x in performance_vs_sentiment],
-#                 [x["sentiment"] for x in performance_vs_sentiment]
-#             )[0, 1] if performance_vs_sentiment else 0
-#         },
-#         "last_updated": datetime.utcnow().isoformat() + "Z"
-#     }
