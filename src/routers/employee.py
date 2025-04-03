@@ -469,6 +469,7 @@ def classify_mood(average_score: float) -> str:
 async def get_employee_summary(current_user: dict = Depends(get_current_user)):
     try:
         employee_id = current_user["employee_id"]
+        
         # Get all data in parallel
         vibe_data, performance_data, activity_data, rewards_data, leave_data = await asyncio.gather(
             async_db["vibemeter"].find({"Employee_ID": employee_id}).sort("Response_Date", -1).to_list(length=None),
@@ -478,111 +479,151 @@ async def get_employee_summary(current_user: dict = Depends(get_current_user)):
             async_db["leave"].find({"Employee_ID": employee_id}).to_list(length=None)
         )
 
-        latest_vibe = {}
-        if vibe_data:
-            latest_vibe = {
-                    "vibe_score": vibe_data[0].get("Vibe_Score"),
-                    "date": vibe_data[0].get("Response_Date").isoformat() 
-                        if isinstance(vibe_data[0].get("Response_Date"), datetime) 
-                        else None
-                }
-
-            vibe_trend = []
-            for vibe in vibe_data:
-                try:
-                    response_date = vibe.get("Response_Date")
-                    if isinstance(response_date, datetime):
-                        response_date = response_date.isoformat()
-                    
-                    curr_vibe = {
-                        "date": response_date,
-                        "vibe_score": vibe.get("Vibe_Score"),
-                        "vibe": get_vibe(vibe.get("Vibe_Score"))
-                    }
-                        
-                    vibe_trend.append(curr_vibe)
-                except Exception as e:
-                    print(f"Skipping malformed vibe record: {e}")
-
-        # Process performance data
-        performance_rating = None
-        if performance_data:
-            performance_rating = performance_data[0].get('Performance_Rating')
-
-        # Process activity data (last 10 years)
-        recent_activity = None
-        activities = []
-        if activity_data:
-            recent_activity = [a for a in activity_data if 
-                            (datetime.now() - a.get('Date', datetime.now())).days <= 3650]
-            
-            for activity in activity_data:
-                curr_activity = {
-                    "date": activity.get("Date").isoformat(),
-                    "teamsMessages": activity.get("Teams_Messages_Sent"),
-                    "emails": activity.get("Emails_Sent"),
-                    "meetings": activity.get("Meetings_Attended")
-                }
-                activities.append(curr_activity)
-            total_work_hours = sum(a.get('Work_Hours', 0) for a in recent_activity)
-            average_work_hours = total_work_hours / len(recent_activity)
-        
-        # Process rewards data
-        awards = []
-        if rewards_data:
-            for reward in rewards_data:
-                award_info = {
-                    "type": reward.get('Award_Type'),
-                    "date": reward.get('Award_Date').isoformat() 
-                        if isinstance(reward.get('Award_Date'), datetime) 
-                        else None,
-                    "reward_points": reward.get('Reward_Points'),
-                }
-                # if award_info['award_type']:  # Only include if award_type exists
-                awards.append(award_info)
-
-        # Process leave data
-        leave_counts = defaultdict(int)
-        leave_info = []
-        if leave_data:
-            for leave in leave_data:
-                leave_type = leave.get('Leave_Type', 'other').lower().replace(' ', '_')
-                leave_counts[leave_type] += leave.get('Leave_Days', 0)
-                info = {
-                    'leave_start_date' : leave.get('Leave_Start_Date').isoformat(),
-                    'leave_end_date' : leave.get('Leave_End_Date').isoformat(),
-                    'leave_days' : leave.get('Leave_Days'),
-                    'leave_type' : leave.get('Leave_Type'),
-                }
-                leave_info.append(info)
-
-        # Build response
+        # Initialize with default values
         response = {
-            "latest_vibe": latest_vibe,
-            "vibe_trend": vibe_trend,
-            "leave_balance": 20 - len(leave_data),
-            "meetings_attended": int(sum(a.get('Meetings_Attended', 0) for a in recent_activity)),
-            "performance_rating": performance_rating,
-            "total_work_hours": round(total_work_hours, 2),
-            "average_work_hours": round(average_work_hours, 2),
-            "awards": awards,
-            "activity_level": activities,
+            "latest_vibe": {},
+            "vibe_trend": [],
+            "leave_balance": 20,  # Default leave balance
+            "meetings_attended": 0,
+            "performance_rating": None,
+            "total_work_hours": 0,
+            "average_work_hours": 0,
+            "awards": [],
+            "activity_level": [],
             "overall_activity_level": {
-                "teams_messages_sent": int(sum(a.get('Teams_Messages_Sent', 0) for a in recent_activity)),
-                "emails_sent": int(sum(a.get('Emails_Sent', 0) for a in recent_activity)),
-                "meetings_attended": int(sum(a.get('Meetings_Attended', 0) for a in recent_activity))
+                "teams_messages_sent": 0,
+                "emails_sent": 0,
+                "meetings_attended": 0
             },
-            "leaves": dict(leave_counts),
-            "all_leaves": leave_info,
+            "leaves": {},
+            "all_leaves": []
         }
+
+        # Process Vibe Data if available
+        if vibe_data and len(vibe_data) > 0:
+            try:
+                response["latest_vibe"] = {
+                    "vibe_score": vibe_data[0].get("Vibe_Score", 0),
+                    "date": vibe_data[0].get("Response_Date", datetime.now()).isoformat() 
+                        if isinstance(vibe_data[0].get("Response_Date"), datetime) 
+                        else datetime.now().isoformat()
+                }
+
+                response["vibe_trend"] = [
+                    {
+                        "date": vibe.get("Response_Date", datetime.now()).isoformat() 
+                            if isinstance(vibe.get("Response_Date"), datetime) 
+                            else datetime.now().isoformat(),
+                        "vibe_score": vibe.get("Vibe_Score", 0),
+                        "vibe": get_vibe(vibe.get("Vibe_Score", 0))
+                    } for vibe in vibe_data
+                ]
+            except Exception as e:
+                logger.error(f"Error processing vibe data: {str(e)}")
+
+        # Process Performance Data if available
+        if performance_data and len(performance_data) > 0:
+            try:
+                response["performance_rating"] = performance_data[0].get('Performance_Rating')
+            except Exception as e:
+                logger.error(f"Error processing performance data: {str(e)}")
+
+        # Process Activity Data if available
+        if activity_data and len(activity_data) > 0:
+            try:
+                recent_activity = [a for a in activity_data if 
+                                isinstance(a.get('Date'), datetime) and
+                                (datetime.now() - a.get('Date')).days <= 3650]
+                
+                response["activity_level"] = [
+                    {
+                        "date": activity.get("Date", datetime.now()).isoformat(),
+                        "teamsMessages": activity.get("Teams_Messages_Sent", 0),
+                        "emails": activity.get("Emails_Sent", 0),
+                        "meetings": activity.get("Meetings_Attended", 0)
+                    } for activity in activity_data
+                ]
+
+                if recent_activity:
+                    total_work_hours = sum(a.get('Work_Hours', 0) for a in recent_activity)
+                    response["total_work_hours"] = round(total_work_hours, 2)
+                    response["average_work_hours"] = round(total_work_hours / len(recent_activity), 2)
+                    
+                    response["overall_activity_level"] = {
+                        "teams_messages_sent": int(sum(a.get('Teams_Messages_Sent', 0) for a in recent_activity)),
+                        "emails_sent": int(sum(a.get('Emails_Sent', 0) for a in recent_activity)),
+                        "meetings_attended": int(sum(a.get('Meetings_Attended', 0) for a in recent_activity))
+                    }
+                    
+                    response["meetings_attended"] = response["overall_activity_level"]["meetings_attended"]
+            except Exception as e:
+                logger.error(f"Error processing activity data: {str(e)}")
+
+        # Process Rewards Data if available
+        if rewards_data and len(rewards_data) > 0:
+            try:
+                response["awards"] = [
+                    {
+                        "type": reward.get('Award_Type', 'Unknown'),
+                        "date": reward.get('Award_Date', datetime.now()).isoformat() 
+                            if isinstance(reward.get('Award_Date'), datetime) 
+                            else datetime.now().isoformat(),
+                        "reward_points": reward.get('Reward_Points', 0)
+                    } for reward in rewards_data
+                ]
+            except Exception as e:
+                logger.error(f"Error processing rewards data: {str(e)}")
+
+        # Process Leave Data if available
+        if leave_data and len(leave_data) > 0:
+            try:
+                leave_counts = defaultdict(int)
+                leave_info = []
+                
+                for leave in leave_data:
+                    leave_type = leave.get('Leave_Type', 'other').lower().replace(' ', '_')
+                    leave_counts[leave_type] += leave.get('Leave_Days', 0)
+                    
+                    leave_info.append({
+                        'leave_start_date': leave.get('Leave_Start_Date', datetime.now()).isoformat() 
+                            if isinstance(leave.get('Leave_Start_Date'), datetime) 
+                            else datetime.now().isoformat(),
+                        'leave_end_date': leave.get('Leave_End_Date', datetime.now()).isoformat() 
+                            if isinstance(leave.get('Leave_End_Date'), datetime) 
+                            else datetime.now().isoformat(),
+                        'leave_days': leave.get('Leave_Days', 0),
+                        'leave_type': leave.get('Leave_Type', 'other')
+                    })
+
+                response["leaves"] = dict(leave_counts)
+                response["all_leaves"] = leave_info
+                response["leave_balance"] = 20 - sum(leave_counts.values())  # Assuming 20 is total leave balance
+            except Exception as e:
+                logger.error(f"Error processing leave data: {str(e)}")
 
         return JSONResponse(content=response)
     
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error fetching employee summary: {str(e)}"
-        )
+        logger.error(f"Error in get_employee_summary: {str(e)}")
+        # Return default response structure even on error
+        return JSONResponse(content={
+            "latest_vibe": {},
+            "vibe_trend": [],
+            "leave_balance": 20,
+            "meetings_attended": 0,
+            "performance_rating": None,
+            "total_work_hours": 0,
+            "average_work_hours": 0,
+            "awards": [],
+            "activity_level": [],
+            "overall_activity_level": {
+                "teams_messages_sent": 0,
+                "emails_sent": 0,
+                "meetings_attended": 0
+            },
+            "leaves": {},
+            "all_leaves": []
+        })
         
 # Schedules CRUD API
 @router.get("/get_schedules", summary="Get schedules for an employee by month/year")
@@ -625,7 +666,6 @@ async def get_schedules(date: date, current_user: dict = Depends(get_current_use
             status_code=500,
             detail=f"Error retrieving schedules: {str(e)}"
         )
-
 
 @router.post("/add_schedule", summary="Add a new schedule entry")
 async def add_schedule_entry(entry: ScheduleEntry, current_user: dict = Depends(get_current_user)):
