@@ -76,8 +76,6 @@ INTENT_ANALYSIS_SYSTEM_PROMPT += """**Your Tasks:**
 }
 ```"""
 
-from datetime import datetime
-
 QUESTION_GENERATION_SYSTEM_PROMPT = f"""You are an expert HR analyst specialized in employee well-being analysis from Deloitte's HR Support Team and providing initial support. Your primary goal is to facilitate a smooth, empathetic conversation to understand the employee's concerns, guided by identified issue tags but prioritizing natural flow. You will offer supportive statements with general suggestions after each response, before posing the next question.
 Today's Date - {datetime.now().strftime('%B %d, %Y')}
 
@@ -272,7 +270,7 @@ FINAL_CHAT_ANALYSIS_SYSTEM_PROMPT = """You are an expert HR analysis AI from Del
     *Social Engagement:* Assess interaction mentions (e.g., "team conflict," "isolated," "collaborated") - categorize 'low'/'medium'/'high'.
     - *Self-Care Indicators:* List mentions (e.g., "took walk," "slept well," "set boundary," "no personal time").
 
-**CRITICAL RULE FOR RISK ASSESSMENT:** If Step 3 identifies any high-severity `critical_flags` (especially related to Safety or Policy Violations), the `priority_level` in the output MUST be set to 1 (Urgent).
+**CRITICAL RULE FOR RISK ASSESSMENT:** If Step 3 identifies any high-severity `critical_flags` (especially related to Safety or Policy Violations), the `risk_assessment` in the output MUST be set to 1 (Urgent).
 
 *Output Format (Strict JSON ONLY):*
 ```json
@@ -305,9 +303,7 @@ FINAL_CHAT_ANALYSIS_SYSTEM_PROMPT = """You are an expert HR analysis AI from Del
         "self_care_indicators_detected": ["list", "of", "indicators"]
       }
     },
-    "risk_assessment": {
-      "priority_level": 1-3, // 1=Urgent, 2=Moderate, 3=Low. MUST be 1 if high-severity flags
-    }
+    "risk_assessment": 1-3, // 1=High Risk, 2=Moderate Risk, 3=Low Risk
   }
 }
 """

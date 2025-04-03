@@ -130,54 +130,11 @@ async def create_hr_users():
         print(f"Error creating HR users: {str(e)}")
         
         
-async def update_role_type():
-    """
-    Update role_type field for all employees except HR users
-    """
-    
-    try:
-        # Update all documents except HR users
-        result = await async_db.users.update_many(
-            {
-                "employee_id": {
-                    "$nin": ["HR00001", "HR00002"]
-                }
-            },
-            {
-                "$set": {
-                    "role_type": "employee"
-                }
-            }
-        )
-        
-        print(f"Updated {result.modified_count} documents")
-        
-        # Verify HR users
-        hr_users = await async_db.users.find(
-            {"employee_id": {"$in": ["HR00001", "HR00002"]}}
-        ).to_list(length=None)
-        
-        print("\nHR Users check:")
-        for user in hr_users:
-            print(f"Employee ID: {user['employee_id']}, Role Type: {user.get('role_type', 'Not Set')}")
-        
-        # Verify sample of updated users
-        sample_users = await async_db.users.find(
-            {"employee_id": {"$nin": ["HR00001", "HR00002"]}}
-        ).limit(5).to_list(length=None)
-        
-        print("\nSample of updated users:")
-        for user in sample_users:
-            print(f"Employee ID: {user['employee_id']}, Role Type: {user.get('role_type', 'Not Set')}")
-
-    except Exception as e:
-        print(f"Error updating role_type: {str(e)}")
-        
-        
 if __name__ == "__main__":
 
-    asyncio.run(update_role_type())
     # asyncio.run(create_hr_users())
     
     # Upload data
     # asyncio.run(preprocess_and_upload_data())deloitte.com
+    
+    pass

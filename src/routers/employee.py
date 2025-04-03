@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, List, Any, Optional
+
+import pytz
 from src.models.dataset import ScheduleEntry, TicketEntry, VibeSubmission
 from utils.analysis import get_project_details, get_vibe
 from utils.app_logger import setup_logger
@@ -177,7 +179,8 @@ async def get_employee_summary(current_user: dict = Depends(get_current_user)):
             },
             "leaves": {},
             "all_leaves": [],
-            "projects": get_project_details()
+            "projects": get_project_details(),
+            "is_chat_required": True
         })
         
 # Schedules CRUD API
@@ -326,45 +329,68 @@ async def submit_vibe(
     submission: VibeSubmission,
     current_user: dict = Depends(get_current_user),
 ):
+    """
+    Submit vibe score for the day. Only one submission allowed per day (IST).
+    """
     try:
-        today = datetime.now(timezone.utc).date()
+        # Get current time in UTC and IST
+        current_utc = datetime.now(timezone.utc)
+        ist_tz = pytz.timezone('Asia/Kolkata')
+        current_ist = current_utc.astimezone(ist_tz)
 
-        existing_vibe = await async_db["vibemeter"].find_one({
-            "Employee_ID": current_user["employee_id"],
-            "Response_Date": {
-                "$gte": datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc),
-                "$lt": datetime.combine(today, datetime.max.time()).replace(tzinfo=timezone.utc)
-            }
-        })
+        # Get latest vibe submission for this employee
+        latest_vibe = await async_db.vibemeter.find_one(
+            {"Employee_ID": current_user["employee_id"]},
+            sort=[("Response_Date", -1)]
+        )
 
-        if existing_vibe:
-            raise HTTPException(
-                status_code = 400,
-                detail = "You have already submitted your vibe score for today"
-            )
-        
-        new_vibe = {
+        # Check if already submitted today
+        if latest_vibe and "Response_Date" in latest_vibe:
+            latest_vibe_utc = latest_vibe["Response_Date"].replace(tzinfo=timezone.utc)
+            latest_vibe_ist = latest_vibe_utc.astimezone(ist_tz)
+
+            # Check if latest submission was on the same day (IST)
+            if latest_vibe_ist.date() == current_ist.date():
+                return {
+                    "status": "error",
+                    "message": f"You have already submitted your vibe score today at {latest_vibe_ist.strftime('%I:%M %p IST')}"
+                }
+
+        # Create new submission
+        vibe_data = {
             "Employee_ID": current_user["employee_id"],
+            "Employee_Name": current_user["name"],
             "Vibe_Score": submission.vibe_score,
             "Message": submission.message,
-            "Response_Date": datetime.now(timezone.utc)
+            "Response_Date": current_utc
         }
 
-        result = await async_db["vibemeter"].insert_one(new_vibe)
+        # Insert into database
+        result = await async_db.vibemeter.insert_one(vibe_data)
+
+        if not result.inserted_id:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to save vibe submission"
+            )
 
         return {
+            "status": "success",
             "message": "Vibe score submitted successfully",
-            "vibe_score": submission.vibe_score,
-            "employee_id": current_user["employee_id"],
-            "submission_id": str(result.inserted_id)
+            "submission_time": current_ist.strftime('%I:%M %p IST'),
+            "data": {
+                "vibe_score": submission.vibe_score,
+                "message": submission.message,
+                "date": current_ist.strftime('%Y-%m-%d'),
+                "time": current_ist.strftime('%I:%M %p IST')
+            }
         }
-    
-    except HTTPException:
-        raise
+
     except Exception as e:
+        logger.error(f"Error in vibe submission: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"An error occurred while submitting the vibe score: {str(e)}"
+            detail=f"Error submitting vibe: {str(e)}"
         )
 
 if __name__ == "__main__":
