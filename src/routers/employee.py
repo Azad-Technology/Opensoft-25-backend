@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, List, Any, Optional
-from src.models.dataset import ScheduleEntry, TicketEntry
+from src.models.dataset import ScheduleEntry, TicketEntry, VibeSubmission
 from utils.analysis import get_vibe
 from utils.app_logger import setup_logger
 from utils.auth import get_current_user
 from utils.config import get_async_database
 from fastapi.responses import JSONResponse
 import pandas as pd
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from collections import defaultdict
 import numpy as np
 import asyncio
@@ -759,6 +759,52 @@ async def add_ticket(entry: TicketEntry, current_user: dict = Depends(get_curren
         raise HTTPException(
             status_code=500,
             detail=f"An error occurred while adding the ticket: {str(e)}"
+        )
+    
+@router.post("/submit_vibe")
+async def submit_vibe(
+    submission: VibeSubmission,
+    current_user: dict = Depends(get_current_user),
+):
+    try:
+        today = datetime.now(timezone.utc).date()
+        start_of_day = datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc)
+        end_of_day = datetime.combine(today, datetime.max.time()).replace(tzinfo=timezone.utc)
+
+        existing_vibe = await async_db["vibemeter"].find_one({
+            "Employee_ID": current_user["employee_id"],
+            "Response_Date": {
+                "$gte": start_of_day,
+                "$lt": end_of_day
+            }
+        })
+
+        if existing_vibe:
+            raise HTTPException(
+                status_code = 400,
+                detail = "You have already submitted your vibe score for today"
+            )
+        
+        new_vibe = {
+            "Employee_ID": current_user["employee_id"],
+            "Employee_Name": current_user["name"],
+            "Vibe_Score": submission.vibe_score,
+            "Response_Date": datetime.now(timezone.utc)
+        }
+
+        result = await async_db["vibemeter"].insert_one(new_vibe)
+
+        return {
+            "message": "Vibe score submitted successfully",
+            "id": str(result.inserted_id)
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while submitting the vibe score: {str(e)}"
         )
 
 if __name__ == "__main__":

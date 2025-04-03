@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime , date
 
@@ -45,4 +45,7 @@ class ScheduleEntry(BaseModel):
 class TicketEntry(BaseModel):
     title: str
     description: str
+
+class VibeSubmission(BaseModel):
+    vibe_score: int = Field(..., gt=0, lt=6)
 
