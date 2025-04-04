@@ -3,9 +3,8 @@ from pathlib import Path
 import json
 from utils.config import settings
 
-question_bank = Path(__file__).resolve().parent.parent / "analysis" / "data" / "tagged_questions1.json"
+question_bank = Path(__file__).resolve().parent.parent / "analysis" / "data" / "tagged_questions.json"
 question_relations = Path(__file__).resolve().parent.parent / "analysis" / "data" / "question_relationships.json"
-
 
 class Neo4j:
     def __init__(self, uri, user, password):

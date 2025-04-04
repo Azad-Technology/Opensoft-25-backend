@@ -1,4 +1,5 @@
 import json
+from src.analysis.data_analyze_pipeline import get_employee_profile_json
 from src.chatbot.mentors import mentor_chat_completion
 from src.runner import graph_db
 from utils.config import get_async_database
@@ -6,7 +7,6 @@ from src.chatbot.llm_models import get_model
 from typing import Dict, List
 from datetime import datetime, timezone
 from utils.app_logger import setup_logger
-from src.analysis.data_sample import create_employee_profile, get_employee_profile_json
 from src.chatbot.system_prompts import (
     FINAL_CHAT_ANALYSIS_PROMPT,
     FINAL_CHAT_ANALYSIS_SYSTEM_PROMPT,
