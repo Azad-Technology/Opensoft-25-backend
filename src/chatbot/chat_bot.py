@@ -6,7 +6,7 @@ from src.chatbot.llm_models import get_model
 from typing import Dict, List
 from datetime import datetime, timezone
 from utils.app_logger import setup_logger
-from src.analysis.data_sample import create_employee_profile
+from src.analysis.data_sample import create_employee_profile, get_employee_profile_json
 from src.chatbot.system_prompts import (
     FINAL_CHAT_ANALYSIS_PROMPT,
     FINAL_CHAT_ANALYSIS_SYSTEM_PROMPT,
@@ -341,7 +341,7 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
         # New conversation
         if not chat_history or len(chat_history) == 0:
             logger.info(f"[Session: {session_id}] Starting new conversation")
-            employee_profile = await create_employee_profile(employee_id)
+            employee_profile = await get_employee_profile_json(employee_id)
             
             intent_data = await extract_intent_from_employee(employee_profile, session_id)
             if not intent_data:
@@ -365,7 +365,7 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             return {"response": question, "conversation_status": "ongoing", "intent_data": intent_data}
         
         # Existing conversation
-        intent_data = await get_intent_data(session_id)
+        intent_data = await get_intent_data(employee_id)
         if not intent_data:
             logger.error(f"[Session: {session_id}] Failed to retrieve intent data")
             return {"error": "Failed to retrieve conversation context", "conversation_status": "error"}

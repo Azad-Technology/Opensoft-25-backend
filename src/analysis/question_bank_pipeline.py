@@ -216,4 +216,4 @@ if __name__ == "__main__":
 
     # process_question_bank(question_bank, api_keys)
     
-    process_question_relationships(api_keys)
+    # process_question_relationships(api_keys)

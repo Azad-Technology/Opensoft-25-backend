@@ -124,11 +124,31 @@ async def create_employee_profile(employee_id: str) -> str:
         raise e
 
 async def get_employee_profile_json(employee_id: str) -> dict:
-    """Create a JSON format profile for a single employee"""
+    """Create a JSON format profile for a single employee with limited recent data"""
     logger.info(f"Creating JSON profile for employee: {employee_id}")
     
     try:
-        # Collect all data
+        
+        # Get all performance records and sort them manually
+        all_performance = await async_db.performance.find(
+            {"Employee_ID": employee_id},
+            {"_id": 0}
+        ).to_list(length=None)
+        
+        # Custom sorting function for performance periods
+        def sort_performance(record):
+            period = record["Review_Period"]
+            year = int(period.split()[-1])
+            half = 1 if "H1" in period else 2
+            return (year, half)
+        
+        # Sort and get last 3 entries
+        sorted_performance = sorted(
+            all_performance,
+            key=sort_performance,
+            reverse=True
+        )[:3]
+        
         collections_data = {
             "employee_id": employee_id,
             "onboarding": await async_db.onboarding.find_one(
@@ -138,53 +158,85 @@ async def get_employee_profile_json(employee_id: str) -> dict:
             "vibemeter": await async_db.vibemeter.find(
                 {"Employee_ID": employee_id},
                 {"_id": 0}
-            ).to_list(length=None),
-            "performance": await async_db.performance.find(
-                {"Employee_ID": employee_id},
-                {"_id": 0}
-            ).to_list(length=None),
+            ).sort([("Response_Date", -1)]).limit(3).to_list(length=None),
+            
+            "performance": sorted_performance,  # Use manually sorted performance data
+            
             "rewards": await async_db.rewards.find(
                 {"Employee_ID": employee_id},
                 {"_id": 0}
-            ).to_list(length=None),
+            ).sort([("Award_Date", -1)]).limit(3).to_list(length=None),
+            
             "leave": await async_db.leave.find(
                 {"Employee_ID": employee_id},
                 {"_id": 0}
-            ).to_list(length=None),
+            ).sort([("Leave_Start_Date", -1)]).limit(3).to_list(length=None),
+            
             "activity": await async_db.activity.find(
                 {"Employee_ID": employee_id},
                 {"_id": 0}
-            ).to_list(length=None)
+            ).sort([("Date", -1)]).limit(3).to_list(length=None),
+            
+            "analyzed_profile": await async_db.analyzed_profile.find_one(
+                {"Employee_ID": employee_id},
+                {"_id": 0},
+                sort=[("timestamp", -1)]
+            )
         }
         
         logger.debug(f"Calculating summary metrics for: {employee_id}")
         
         # Calculate summary metrics
-        summary = {}
+        # summary = {}
         
-        if collections_data["vibemeter"]:
-            summary["average_vibe_score"] = sum(v["Vibe_Score"] for v in collections_data["vibemeter"]) / len(collections_data["vibemeter"])
+        # if collections_data["vibemeter"]:
+        #     summary["average_vibe_score"] = sum(v["Vibe_Score"] for v in collections_data["vibemeter"]) / len(collections_data["vibemeter"])
+        #     summary["latest_vibe_score"] = collections_data["vibemeter"][0]["Vibe_Score"]
+        #     summary["latest_vibe_date"] = collections_data["vibemeter"][0]["Response_Date"]
         
-        if collections_data["rewards"]:
-            summary["total_rewards"] = sum(r["Reward_Points"] for r in collections_data["rewards"])
+        # if collections_data["rewards"]:
+        #     summary["recent_rewards"] = sum(r["Reward_Points"] for r in collections_data["rewards"])
+        #     summary["latest_reward"] = {
+        #         "type": collections_data["rewards"][0]["Award_Type"],
+        #         "date": collections_data["rewards"][0]["Award_Date"]
+        #     }
         
-        if collections_data["performance"]:
-            summary["latest_performance"] = collections_data["performance"][-1]
+        # if collections_data["performance"]:
+        #     summary["latest_performance"] = {
+        #         "rating": collections_data["performance"][0]["Performance_Rating"],
+        #         "feedback": collections_data["performance"][0]["Manager_Feedback"],
+        #         "period": collections_data["performance"][0]["Review_Period"]
+        #     }
         
-        if collections_data["leave"]:
-            summary["total_leave_days"] = sum(l["Leave_Days"] for l in collections_data["leave"])
+        # if collections_data["leave"]:
+        #     summary["recent_leave_days"] = sum(l["Leave_Days"] for l in collections_data["leave"])
+        #     summary["latest_leave"] = {
+        #         "days": collections_data["leave"][0]["Leave_Days"],
+        #         "start_date": collections_data["leave"][0]["Leave_Start_Date"]
+        #     }
         
-        if collections_data["activity"]:
-            summary["average_work_hours"] = sum(a.get("Work_Hours", 0) for a in collections_data["activity"]) / len(collections_data["activity"])
+        # if collections_data["activity"]:
+        #     summary["recent_avg_work_hours"] = sum(a.get("Work_Hours", 0) for a in collections_data["activity"]) / len(collections_data["activity"])
+        #     summary["latest_activity"] = {
+        #         "work_hours": collections_data["activity"][0]["Work_Hours"],
+        #         "date": collections_data["activity"][0]["Date"]
+        #     }
         
-        collections_data["summary"] = summary
+        # if collections_data["onboarding"]:
+        #     summary["onboarding_status"] = {
+        #         "mentor_assigned": collections_data["onboarding"]["Mentor_Assigned"],
+        #         "training_completed": collections_data["onboarding"]["Initial_Training_Completed"],
+        #         "feedback": collections_data["onboarding"]["Onboarding_Feedback"]
+        #     }
         
-        logger.info(f"Successfully created JSON profile for: {employee_id} - {collections_data}")
+        # collections_data["summary"] = summary
+        
+        logger.info(f"Successfully created JSON profile for: {employee_id}")
         return collections_data
 
     except Exception as e:
         logger.error(f"Error creating JSON profile for {employee_id}: {str(e)}", exc_info=True)
-        return None
+        return {}
 
 if __name__ == "__main__":
     async def main():

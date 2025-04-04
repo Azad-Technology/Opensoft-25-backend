@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta  # Add timedelta to imports
 from collections import defaultdict
 from typing import Dict
 from fastapi import APIRouter, Depends, HTTPException, Query
+from src.analysis.data_analyze_pipeline import analyzed_profile
 from src.models.auth import OnboardingRequest
 from utils.analysis import get_vibe
 from utils.app_logger import setup_logger
@@ -599,4 +600,36 @@ async def get_hr_wellness_dashboard():
             "error": "Could not generate wellness dashboard",
             "details": str(e),
             "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+        
+        
+@router.get("/start_analyzing_the_profile")
+async def start_analyzing_the_profile(
+    id: str
+):
+    try:
+        if id != "IamAdmin":
+            return {
+                "message": "You are not authorized to analyze the profile"
+            }
+            
+        result = await analyzed_profile()
+        
+        # Convert BulkWriteResult to dictionary
+        result_dict = {
+            "modified_count": result.modified_count,
+            "upserted_count": result.upserted_count,
+            "matched_count": result.matched_count
+        }
+    
+        logger.info(f"Profile analysis completed. Results: {result_dict}")
+        return {
+            "message": "Profile analysis completed successfully",
+            "result": result_dict
+        }
+    except Exception as e:
+        logger.error(f"Error in analyzing the profile: {str(e)}")
+        return {
+            "message": "Error in analyzing the profile",
+            "error": str(e)
         }
