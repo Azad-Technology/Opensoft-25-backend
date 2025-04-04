@@ -5,8 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel
 from src.chatbot.chat_bot import (
     chat_complete,
-    get_chat_history,
-    get_conversation_status
+    get_chat_history
 )
 from utils.auth import get_current_user
 from utils.config import get_async_database

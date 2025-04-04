@@ -1,6 +1,6 @@
 import json
 from src.chatbot.mentors import mentor_chat_completion
-from src.database.graph_db import extract_questions
+from src.runner import graph_db
 from utils.config import get_async_database
 from src.chatbot.llm_models import get_model
 from typing import Dict, List
@@ -21,6 +21,19 @@ logger = setup_logger("src/chatbot/chat_bot.py")
 async_db = get_async_database()
 MODEL_PROVIDER = "GEMINI"
 MODEL_NAME = "gemini-2.0-flash"
+
+async def extract_questions(tag: str):
+    try:
+        questions = graph_db.get_questions_by_tag(tag)
+        logger.info(f"Extracted {len(questions)} questions for tag: {tag}")
+        extracted_questions = []
+        for question in questions:
+            extracted_questions.append(question.get("q.question"))
+        
+        return extracted_questions
+    except Exception as e:
+        logger.error(f"Error extracting questions for tag {tag}: {str(e)}")
+        return []
 
 async def get_chat_history(session_id: str) -> List:
     logger.info(f"[Session: {session_id}] Fetching chat history")
@@ -220,7 +233,6 @@ async def analyze_response(intent_data: Dict, chat_history: List, current_tag: s
                     "role": chat["role"],
                     "content": chat["message"]
                 })
-            
         messages.append({
             "role": "user",
             "content": RESPONSE_ANALYSIS_PROMPT.format(
@@ -361,7 +373,6 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             logger.info(f"[Session: {session_id}] Mentor already assigned for this conversation")
             return {
                 "response": await mentor_chat_completion(employee_id, intent_data, chat_history, session_id, message),
-                "conversation_status": "complete",
                 "intent_data": intent_data
             }
         
@@ -389,7 +400,6 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             await save_intent_data(employee_id, session_id, intent_data)
             return {
                 "response": f"Thank you for sharing. I'll make sure to get this information to the right team. After analyzing your conversation, I recommend you to talk to a {final_analysis['recommended_mentor']}. You can just say Hi to start the conversation with the mentor.",
-                "conversation_status": "complete",
                 "intent_data": intent_data
             }
         
@@ -415,7 +425,7 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             number += 1
         
         # Check if conversation should end after analysis
-        if number >= len(intent_data["tags"]):
+        if number >= len(intent_data["tags"]) or analysis["force_conversation_end"]:
             logger.info(f"[Session: {session_id}] Conversation complete - Analysis based")
             final_analysis = await final_chat_analysis(session_id, chat_history, intent_data)
             intent_data["chat_completed"] = True
@@ -424,7 +434,6 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             await save_intent_data(employee_id, session_id, intent_data)
             return {
                 "response": f"Thank you for sharing. I'll make sure to get this information to the right team. After analyzing your conversation, I recommend you to talk to a {final_analysis['recommended_mentor']}. You can just say Hi to start the conversation with the mentor.",
-                "conversation_status": "complete",
                 "intent_data": intent_data
             }
 
@@ -447,7 +456,6 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
         logger.info(f"[Session: {session_id}] Successfully completed chat iteration")
         return {
             "response": next_question, 
-            "conversation_status": "ongoing", 
             "intent_data": intent_data
         }
 
@@ -460,31 +468,33 @@ if __name__ == "__main__":
     import asyncio
 
     async def main():
-        try:
-            session_id = "98162e50-00d8-4a51-bb7c-ae29a3776142"
+        
+        await extract_questions("Lack_of_Engagement")
+        # try:
+        #     session_id = "98162e50-00d8-4a51-bb7c-ae29a3776142"
             
-            # Get chat history and intent data
-            chat_history = await get_chat_history(session_id)
-            if not chat_history:
-                print("No chat history found")
-                return
+        #     # Get chat history and intent data
+        #     chat_history = await get_chat_history(session_id)
+        #     if not chat_history:
+        #         print("No chat history found")
+        #         return
                 
-            intent_data = await get_intent_data(session_id)
-            if not intent_data:
-                print("No intent data found")
-                return
+        #     intent_data = await get_intent_data(session_id)
+        #     if not intent_data:
+        #         print("No intent data found")
+        #         return
             
-            # Perform final analysis
-            result = await final_chat_analysis(
-                session_id=session_id,
-                chat_history=chat_history,
-                intent_data=intent_data
-            )
+        #     # Perform final analysis
+        #     result = await final_chat_analysis(
+        #         session_id=session_id,
+        #         chat_history=chat_history,
+        #         intent_data=intent_data
+        #     )
             
-            print("\nFinal Analysis:", result)
+        #     print("\nFinal Analysis:", result)
             
-        except Exception as e:
-            print(f"An error occurred: {str(e)}")
+        # except Exception as e:
+        #     print(f"An error occurred: {str(e)}")
 
     # Run all async operations in a single event loop
     asyncio.run(main())

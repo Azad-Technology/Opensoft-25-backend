@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     MONGODB_URI: Optional[str] = os.getenv("MONGODB_URI")
     MONGODB_NAME: Optional[str] = os.getenv("MONGODB_NAME")
     
+    NEO4J_URI: Optional[str] = os.getenv("NEO4J_URI")
     NEO4J_USER: Optional[str] = os.getenv("NEO4J_USER")
     NEO4J_PASSWORD: Optional[str] = os.getenv("NEO4J_PASSWORD")
     

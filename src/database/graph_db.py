@@ -88,21 +88,8 @@ class Neo4j:
         )
         tx.run(query, from_id=relationship["from_id"], to_id=relationship["to_id"], score=relationship["score"])
 
-async def extract_questions(tag: str):
-    
-    try:
-        # questions = graph_db.get_questions_by_tag(tag)
-        # print(f"Questions with tag '{tag}': {len(questions)}")
-        
-        return []
-    except Exception as e:
-        print(f"Error: {e}")
-        return []
-
 
 if __name__ == "__main__":
-
-    # Opened csv files
     with open(question_bank, "r", encoding="utf-8") as file:
         tagged_questions = json.load(file)
     
@@ -110,12 +97,10 @@ if __name__ == "__main__":
         question_relationships = json.load(file)
 
     # Uploader
-    uploader = Neo4j("neo4j+s://419ac377.databases.neo4j.io", settings.NEO4J_USER, settings.NEO4J_PASSWORD)
-    uploader.upload_data(tagged_questions)  # TO BE RUN ONCE
+    uploader = Neo4j(settings.NEO4J_URI, settings.NEO4J_USER, settings.NEO4J_PASSWORD)
+    # uploader.upload_data(tagged_questions)  # TO BE RUN ONCE
 
-    # questions = uploader.get_questions_by_tag('Workplace_Conflict')
-    # print(len(questions))
+    questions = uploader.get_questions_by_tag('Lack_of_Engagement')
+    print(questions)
     uploader.close()
     print("Data uploaded successfully!")
-
-
