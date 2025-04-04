@@ -283,13 +283,13 @@ FINAL_CHAT_ANALYSIS_SYSTEM_PROMPT += """
 *   4: High Risk (Significant concerns, requires prompt attention/intervention - *Likely if critical flags present*)
 *   5: Urgent Risk (Immediate safety/policy/distress concerns identified - *Must be 5 if severe critical flags present*)
 
-**CRITICAL RULE:** If Step 3 identifies *any* critical flags, the `risk_level` *must* be 4 or 5, and the `recommended_resource` *must* be `"ForwardingRequestToHR"`.
+**CRITICAL RULE:** If Step 3 identifies *any* critical flags, the `risk_level` *must* be 4 or 5, and the `recommended_mentor` *must* be `"ForwardingRequestToHR"`.
 
 *Output Format (Strict JSON ONLY):*
 ```json
 {
   "summary": "Detailed, anonymized summary of the conversation (core issues, themes, feelings, progression). No PII.",
-  "recommended_resource": "selected_recommendation_name_from_list", // e.g., "ForwardingRequestToHR" or "productivity_and_balance_coach"
+  "recommended_mentor": "selected_recommendation_name_from_list", // e.g., "ForwardingRequestToHR" or "productivity_and_balance_coach"
   "wellbeing_analysis": {
     "composite_score": 0-100, // Weighted sum; 0=Low Concern, 100=High Concern/Need Attention.
     "component_breakdown": {
@@ -331,7 +331,7 @@ Perform the complete chat analysis as defined in your system instructions, inclu
 2.  Generating an anonymized summary.
 3.  Conducting the structured well-being analysis (component scores/summaries, composite score - higher indicates more concern).
 4.  Identifying critical flags and assessing the overall risk level (1-5, higher indicates more risk).
-5.  Recommending the single most appropriate resource ('ForwardingRequestToHR' or a specific mentor).
+5.  Recommending the single most appropriate mentor ('ForwardingRequestToHR' or a specific mentor).
 
 **Output:**
 

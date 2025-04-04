@@ -315,7 +315,8 @@ async def final_chat_analysis(session_id: str, chat_history, intent_data) -> Dic
                 "innovation_and_solutions_spark",
                 "workplace_engagement_ally",
                 "change_adaptation_advisor",
-                "leadership_foundations_guide"
+                "leadership_foundations_guide",
+                "ForwardingRequestToHR"
             ]
             
             if analysis_result.get("recommended_mentor") not in valid_mentors:
@@ -398,8 +399,12 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             intent_data["chat_analysis"] = final_analysis
             
             await save_intent_data(employee_id, session_id, intent_data)
+            if final_analysis['recommended_mentor'] == 'ForwardingRequestToHR':
+                response = "Your issue has been forwarded to HR Management. Please wait for their response."
+            else:
+                response = f"Thank you for sharing your concerns. Based on our conversation, I recommend you speak with {final_analysis['recommended_mentor']}. You can continue the conversation with them directly in this chat."
             return {
-                "response": f"Thank you for sharing. I'll make sure to get this information to the right team. After analyzing your conversation, I recommend you to talk to a {final_analysis['recommended_mentor']}. You can just say Hi to start the conversation with the mentor.",
+                "response": response,
                 "intent_data": intent_data
             }
         
@@ -432,8 +437,12 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             intent_data["chat_analysis"] = final_analysis
             
             await save_intent_data(employee_id, session_id, intent_data)
+            if final_analysis['recommended_mentor'] == 'ForwardingRequestToHR':
+                response = "Your issue has been forwarded to HR Management. Please wait for their response."
+            else:
+                response = f"Thank you for sharing your concerns. Based on our conversation, I recommend you speak with {final_analysis['recommended_mentor']}. You can continue the conversation with them directly in this chat."
             return {
-                "response": f"Thank you for sharing. I'll make sure to get this information to the right team. After analyzing your conversation, I recommend you to talk to a {final_analysis['recommended_mentor']}. You can just say Hi to start the conversation with the mentor.",
+                "response": response,
                 "intent_data": intent_data
             }
 

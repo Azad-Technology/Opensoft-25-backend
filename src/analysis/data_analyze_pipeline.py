@@ -10,9 +10,7 @@ from sklearn.linear_model import BayesianRidge
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
-
 from utils.config import get_async_database
-
 
 async def load_collection_to_dataframe(collection_name):
     db = get_async_database()
