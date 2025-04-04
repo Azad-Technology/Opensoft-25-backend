@@ -1,17 +1,16 @@
-from datetime import UTC, datetime, timedelta  # Add timedelta to imports
+from datetime import UTC, datetime
 from collections import defaultdict
 from typing import Dict
 from fastapi import APIRouter, Depends, HTTPException, Query
 from src.analysis.data_analyze_pipeline import analyzed_profile
 from src.models.auth import OnboardingRequest
-from utils.analysis import get_vibe
+from utils.analysis import get_vibe, process_doc, serialize_datetime
 from utils.app_logger import setup_logger
 from utils.auth import get_current_user, get_password_hash
 from utils.config import get_async_database
 from fastapi.responses import JSONResponse
 from datetime import datetime
 from collections import defaultdict
-import numpy as np
 import asyncio
 
 router = APIRouter()
@@ -31,34 +30,6 @@ async def get_employee_summary(employee_id: str, current_user: dict = Depends(ge
                 status_code=403,
                 detail="Unauthorized to see the summary"
             )
-        
-        def process_doc(doc):
-            if not doc:
-                return {}
-            processed = {}
-            for key, value in doc.items():
-                if key == '_id':
-                    processed[key] = str(value)
-                elif isinstance(value, datetime):
-                    processed[key] = value.isoformat()
-                else:
-                    processed[key] = value
-            return processed
-        # Helper function to classify vibes
-        def get_vibe(score):
-            if not isinstance(score, (int, float)):
-                return "unknown"
-            if score > 4.5 and score <= 5:
-                return "Excited"
-            elif score > 3.5 and score <= 4.5:
-                return "Happy"
-            elif score > 2.5 and score <= 3.5:
-                return "Okay"
-            elif score > 1.5 and score <= 2.5:
-                return "Sad"
-            elif score >= 0 and score <= 1.5:
-                return "Frustrated"
-            return "unknown"
         
         today = datetime.now()
         months_order = [
@@ -227,6 +198,38 @@ async def get_employee_summary(employee_id: str, current_user: dict = Depends(ge
                     else None
             }
             
+        # Get the latest intent data
+        latest_intent = await async_db["intent_data"].find_one(
+            {
+                "employee_id": employee_id,
+                "intent_data.chat_completed": True  # Only get completed chats
+            },
+            sort=[("updated_at", -1)]  # Get the most recent one
+        )
+
+        # Process intent and chat analysis
+        intent_analysis = {}
+        chat_analysis = {}
+        
+        if latest_intent and "intent_data" in latest_intent:
+            intent_data = latest_intent["intent_data"]
+            
+            # Process intent analysis
+            intent_analysis = {
+                "primary_issues": intent_data.get("primary_issues"),
+                "tags": intent_data.get("tags", []),
+                "updated_at": serialize_datetime(latest_intent.get("updated_at"))
+            }
+            
+            # Process chat analysis if it exists
+            if intent_data.get("chat_completed") and "chat_analysis" in intent_data:
+                chat_data = intent_data["chat_analysis"]
+                chat_analysis = {
+                    "summary": chat_data.get("summary"),
+                    "recommended_mentor": chat_data.get("recommended_mentor"),
+                    "wellbeing_analysis": chat_data.get("wellbeing_analysis", {}),
+                    "risk_assessment": chat_data.get("risk_assessment", {})
+                }
         
 
         # Build comprehensive response
@@ -260,8 +263,8 @@ async def get_employee_summary(employee_id: str, current_user: dict = Depends(ge
             "performance": process_doc(performance_data[0]) if performance_data else None,
             "performance_rating_month_wise": avg_perf_per_month,
             "working_hours_month_wise": avg_work_hours_per_month,
-            "intent_analysis": {},
-            "post_chat_analysis": {}
+            "intent_analysis": intent_analysis,
+            "post_chat_analysis": chat_analysis
         }
         return JSONResponse(content=response)
     

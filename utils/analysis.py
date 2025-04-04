@@ -1,3 +1,6 @@
+from datetime import datetime
+
+
 def get_vibe(score):
     if not isinstance(score, (int, float)):
         return "unknown"
@@ -11,6 +14,27 @@ def get_vibe(score):
         return "Sad"
     elif score>=0 and score<=1.5:
         return "Frustrated"
+    else:
+        return "unknown"
+    
+def serialize_datetime(obj):
+    """Helper function to serialize datetime objects"""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    return obj
+    
+def process_doc(doc):
+            if not doc:
+                return {}
+            processed = {}
+            for key, value in doc.items():
+                if key == '_id':
+                    processed[key] = str(value)
+                elif isinstance(value, datetime):
+                    processed[key] = value.isoformat()
+                else:
+                    processed[key] = value
+            return processed
     
 def get_project_details():
     return [

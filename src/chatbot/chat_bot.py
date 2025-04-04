@@ -1,4 +1,6 @@
 import json
+
+import pytz
 from src.analysis.data_analyze_pipeline import get_employee_profile_json
 from src.chatbot.mentors import mentor_chat_completion
 from src.runner import graph_db
@@ -76,11 +78,17 @@ async def save_to_chat_history(employee_id: str, session_id: str, role: str, mes
 async def save_intent_data(employee_id: str, session_id: str, intent_data: Dict) -> bool:
     logger.info(f"[Session: {session_id}] Saving intent data for employee: {employee_id}")
     try:
+        current_utc = datetime.now(timezone.utc)
+        ist_tz = pytz.timezone('Asia/Kolkata')
+        current_ist = current_utc.astimezone(ist_tz)
+        current_ist_date = current_ist.date().isoformat()
+        
         await async_db.intent_data.update_one(
             {"session_id": session_id, "employee_id": employee_id},
             {"$set": {
                 "intent_data": intent_data,
-                "updated_at": datetime.now(timezone.utc)
+                "updated_at": datetime.now(timezone.utc),
+                "ist_date": current_ist_date,
             }},
             upsert=True
         )
@@ -365,7 +373,7 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             return {"response": question, "conversation_status": "ongoing", "intent_data": intent_data}
         
         # Existing conversation
-        intent_data = await get_intent_data(employee_id)
+        intent_data = await get_intent_data(session_id)
         if not intent_data:
             logger.error(f"[Session: {session_id}] Failed to retrieve intent data")
             return {"error": "Failed to retrieve conversation context", "conversation_status": "error"}
@@ -472,6 +480,63 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
         logger.error(f"[Session: {session_id}] Error in chat completion: {str(e)}", exc_info=True)
         return {"error": "An error occurred during the conversation", "conversation_status": "error"}
     
+async def is_chat_required(employee_id: str) -> bool:
+    """
+    Determine if chat is required based on analyzed profile and intent data
+    Returns True if:
+    1. Predicted score is <= 2.5
+    2. Actual emotion is "Sad" or "Frustrated"
+    3. No intent data exists for today
+    """
+    try:
+        # Get current IST date
+        current_utc = datetime.now(timezone.utc)
+        ist_tz = pytz.timezone('Asia/Kolkata')
+        current_ist = current_utc.astimezone(ist_tz)
+        current_ist_date = current_ist.date().isoformat()
+
+        # Get latest analyzed profile
+        latest_analysis = await async_db["analyzed_profile"].find_one(
+            {"Employee_ID": employee_id},
+            sort=[("timestamp", -1)]
+        )
+
+        if not latest_analysis:
+            logger.info(f"No analyzed profile found for {employee_id}. Chat required.")
+            return True
+
+        # Check if we have intent data for today
+        today_intent = await async_db["intent_data"].find_one(
+            {
+                "employee_id": employee_id,
+                "intent_data.chat_completed": True,
+                "ist_date": current_ist_date
+            }
+        )
+
+        if today_intent:
+            logger.info(f"Chat already completed today for {employee_id}. Chat not required.")
+            return False
+
+        # Check predicted score and emotions
+        predicted_score = latest_analysis.get("Predicted", 0)
+        actual_emotion = latest_analysis.get("Actual_Emotion", "unknown")
+
+        # If predicted score is low or emotions indicate distress
+        if predicted_score <= 2.5:
+            logger.info(f"Low predicted score ({predicted_score}) for {employee_id}. Chat required.")
+            return True
+
+        if actual_emotion in ["Sad", "Frustrated"]:
+            logger.info(f"Concerning emotion state ({actual_emotion}) for {employee_id}. Chat required.")
+            return True
+
+        logger.info(f"No chat required for {employee_id}")
+        return False
+
+    except Exception as e:
+        logger.error(f"Error checking chat requirement for {employee_id}: {str(e)}")
+        return True  # Default to requiring chat if there's an error
     
 if __name__ == "__main__":
     import asyncio

@@ -24,4 +24,5 @@ dependencies = [
     "faker==37.1.0",
     "gradio==5.23.1",
     "scikit-learn==1.6.1",
+    "setuptools==78.1.0",
 ]
