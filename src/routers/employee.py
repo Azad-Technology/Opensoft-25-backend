@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from typing import Dict, List, Any, Optional
 
 import pytz
@@ -6,7 +6,7 @@ from src.chatbot.chat_bot import is_chat_required
 from src.models.dataset import ScheduleEntry, TicketEntry, VibeSubmission
 from utils.analysis import get_project_details, get_vibe
 from utils.app_logger import setup_logger
-from utils.auth import get_current_user
+from utils.auth import get_current_user, verify_password, get_password_hash
 from utils.config import get_async_database
 from fastapi.responses import JSONResponse
 import pandas as pd
@@ -349,6 +349,64 @@ async def submit_vibe(
         raise HTTPException(
             status_code=500,
             detail=f"Error submitting vibe: {str(e)}"
+        )
+
+@router.post("/reset_password")
+async def reset_password(
+    current_user: dict = Depends(get_current_user),
+    old_password: str = Body(...),
+    new_password: str = Body(...),
+    confirm_password: str = Body(...)
+):
+    """
+    Reset user password after verifying old password
+    """
+    try:
+        # Verify new password matches confirmation
+        if new_password != confirm_password:
+            raise HTTPException(
+                status_code=400,
+                detail="New password and confirmation do not match"
+            )
+
+        # Verify old password is correct
+        user = await async_db.users.find_one({"employee_id": current_user["employee_id"]})
+        if not user or not verify_password(old_password, user["password"]):
+            raise HTTPException(
+                status_code=401,
+                detail="Incorrect old password"
+            )
+
+        # Verify new password is different from old password
+        if verify_password(new_password, user["password"]):
+            raise HTTPException(
+                status_code=400,
+                detail="New password must be different from old password"
+            )
+
+        # Update password in database
+        hashed_password = get_password_hash(new_password)
+        await async_db.users.update_one(
+            {"employee_id": current_user["employee_id"]},
+            {"$set": {
+                "password": hashed_password,
+                "updated_at": datetime.now(timezone.utc)
+            }}
+        )
+
+        return JSONResponse(content={
+            "status": "success",
+            "message": "Password updated successfully",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Password reset error for {current_user['employee_id']}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while resetting password"
         )
 
 if __name__ == "__main__":
