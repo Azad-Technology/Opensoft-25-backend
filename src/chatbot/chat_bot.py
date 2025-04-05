@@ -376,7 +376,7 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
         intent_data = await get_intent_data(session_id)
         if not intent_data:
             logger.error(f"[Session: {session_id}] Failed to retrieve intent data")
-            return {"error": "Failed to retrieve conversation context", "conversation_status": "error"}
+            return {"error": "Failed to retrieve conversation context", "conversation_status": "error", "intent_data": intent_data}
         
         if intent_data.get("chat_completed", False):
             logger.info(f"[Session: {session_id}] Mentor already assigned for this conversation")
@@ -427,7 +427,7 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
         analysis = await analyze_response(intent_data, chat_history, current_tag, total_questions, session_id)
         if not analysis:
             logger.error(f"[Session: {session_id}] Failed to analyze response")
-            return {"error": "Failed to analyze response", "conversation_status": "error"}
+            return {"error": "Failed to analyze response", "conversation_status": "error", "intent_data": intent_data}
         
         logger.info(f"[Session: {session_id}] Updating tag summary for {current_tag} and number {number}")
         intent_data["tags"][number]["summary"] = analysis["tag_summary"]
@@ -465,7 +465,7 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
 
         if not next_question:
             logger.error(f"[Session: {session_id}] Failed to generate next question")
-            return {"error": "Failed to generate question", "conversation_status": "error"}
+            return {"error": "Failed to generate question", "conversation_status": "error", "intent_data": intent_data}
 
         # Save question and updated intent data
         await save_to_chat_history(employee_id, session_id, "assistant", next_question)

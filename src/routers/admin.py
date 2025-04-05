@@ -382,8 +382,6 @@ async def get_all_employees(current_user: dict = Depends(get_current_user)):
             async_db["intent_data"].aggregate(intent_pipeline).to_list(length=None),
             async_db["performance"].aggregate(performance_pipeline).to_list(length=None)
         )
-        
-        print(len(users_data), len(vibe_data), len(intent_data), len(performance_data))
 
         # Convert pipeline results to maps for easier access
         vibe_map = {doc['_id']: doc['latest_vibe'] for doc in vibe_data}

@@ -184,8 +184,6 @@ async def get_employee_summary(current_user: dict = Depends(get_current_user)):
             # Check if latest submission was on the same day (IST)
             if latest_vibe_ist.date() == current_ist.date():
                 response["is_vibe_feedback_required"] = False
-                
-        print(len(leave_data))
         
         # Process Leave Data if available
         if leave_data:
@@ -272,7 +270,7 @@ async def get_employee_tickets(current_user: dict = Depends(get_current_user)):
 async def add_ticket(entry: TicketEntry, current_user: dict = Depends(get_current_user)):
     try:
         entry_dict = entry.model_dump()
-        entry_dict['date'] = datetime.now().timestamp()
+        entry_dict['date'] = datetime.now()
         entry_dict['employee_id'] = current_user["employee_id"]
         entry_dict['employee_name'] = current_user["name"]
         entry_dict['is_resolved'] = False

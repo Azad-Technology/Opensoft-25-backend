@@ -52,6 +52,7 @@ INTENT_ANALYSIS_SYSTEM_PROMPT += """**Your Tasks:**
 
 ```json
 {
+    "chat_name": "Please write 2 words for the chat name - specific to this employee profile",
     "name": "Employee_Name_Here",
     "primary_issues": "Descriptive summary of the primary issue(s) or positive status.",
     "tags": [
