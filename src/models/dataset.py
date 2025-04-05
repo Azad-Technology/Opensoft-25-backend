@@ -48,4 +48,4 @@ class TicketEntry(BaseModel):
 
 class VibeSubmission(BaseModel):
     vibe_score: int = Field(..., gt=0, lt=6)
-
+    message: str = Field(..., max_length=500)

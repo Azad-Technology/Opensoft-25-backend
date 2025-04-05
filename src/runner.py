@@ -14,4 +14,4 @@ google_api_manager = APIKeyManager(
     cooldown_period=60
 )
 
-graph_db = Neo4j("neo4j+s://419ac377.databases.neo4j.io", settings.NEO4J_USER, settings.NEO4J_PASSWORD)
+graph_db = Neo4j(settings.NEO4J_URI, settings.NEO4J_USER, settings.NEO4J_PASSWORD)

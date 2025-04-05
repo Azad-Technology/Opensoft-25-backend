@@ -21,3 +21,6 @@ openai==1.66.3
 
 neo4j==5.28.1
 pandas==2.2.3
+
+scikit-learn==1.6.1
+setuptools==78.1.0

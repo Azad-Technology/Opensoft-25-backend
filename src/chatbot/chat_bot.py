@@ -1,12 +1,14 @@
 import json
+
+import pytz
+from src.analysis.data_analyze_pipeline import get_employee_profile_json
 from src.chatbot.mentors import mentor_chat_completion
-from src.database.graph_db import extract_questions
+from src.runner import graph_db
 from utils.config import get_async_database
 from src.chatbot.llm_models import get_model
 from typing import Dict, List
 from datetime import datetime, timezone
 from utils.app_logger import setup_logger
-from src.analysis.data_sample import create_employee_profile
 from src.chatbot.system_prompts import (
     FINAL_CHAT_ANALYSIS_PROMPT,
     FINAL_CHAT_ANALYSIS_SYSTEM_PROMPT,
@@ -21,6 +23,19 @@ logger = setup_logger("src/chatbot/chat_bot.py")
 async_db = get_async_database()
 MODEL_PROVIDER = "GEMINI"
 MODEL_NAME = "gemini-2.0-flash"
+
+async def extract_questions(tag: str):
+    try:
+        questions = graph_db.get_questions_by_tag(tag)
+        logger.info(f"Extracted {len(questions)} questions for tag: {tag}")
+        extracted_questions = []
+        for question in questions:
+            extracted_questions.append(question.get("q.question"))
+        
+        return extracted_questions
+    except Exception as e:
+        logger.error(f"Error extracting questions for tag {tag}: {str(e)}")
+        return []
 
 async def get_chat_history(session_id: str) -> List:
     logger.info(f"[Session: {session_id}] Fetching chat history")
@@ -63,11 +78,17 @@ async def save_to_chat_history(employee_id: str, session_id: str, role: str, mes
 async def save_intent_data(employee_id: str, session_id: str, intent_data: Dict) -> bool:
     logger.info(f"[Session: {session_id}] Saving intent data for employee: {employee_id}")
     try:
+        current_utc = datetime.now(timezone.utc)
+        ist_tz = pytz.timezone('Asia/Kolkata')
+        current_ist = current_utc.astimezone(ist_tz)
+        current_ist_date = current_ist.date().isoformat()
+        
         await async_db.intent_data.update_one(
             {"session_id": session_id, "employee_id": employee_id},
             {"$set": {
                 "intent_data": intent_data,
-                "updated_at": datetime.now(timezone.utc)
+                "updated_at": datetime.now(timezone.utc),
+                "ist_date": current_ist_date,
             }},
             upsert=True
         )
@@ -99,37 +120,6 @@ async def get_intent_data(session_id: str) -> Dict:
     except Exception as e:
         logger.error(f"[Session: {session_id}] Error retrieving intent data: {str(e)}")
         return {}
-    
-async def save_conversation_status(session_id: str, status: str) -> bool:
-    logger.info(f"[Session: {session_id}] Saving conversation status: {status}")
-    try:
-        await async_db.conversation_status.update_one(
-            {"session_id": session_id},
-            {"$set": {
-                "status": status,
-                "updated_at": datetime.now(timezone.utc)
-            }},
-            upsert=True
-        )
-        logger.info(f"[Session: {session_id}] Successfully saved conversation status")
-        return True
-    except Exception as e:
-        logger.error(f"[Session: {session_id}] Error saving conversation status: {str(e)}")
-        return False
-
-async def get_conversation_status(session_id: str) -> str:
-    logger.info(f"[Session: {session_id}] Retrieving conversation status")
-    try:
-        status_doc = await async_db.conversation_status.find_one(
-            {"session_id": session_id},
-            {"_id": 0, "status": 1}
-        )
-        status = status_doc.get("status", "new") if status_doc else "new"
-        logger.info(f"[Session: {session_id}] Current conversation status: {status}")
-        return status
-    except Exception as e:
-        logger.error(f"[Session: {session_id}] Error retrieving conversation status: {str(e)}")
-        return "new"
 
 async def extract_intent_from_employee(employee_profile, session_id: str):
     logger.info(f"[Session: {session_id}] Starting intent extraction from employee profile")
@@ -251,7 +241,6 @@ async def analyze_response(intent_data: Dict, chat_history: List, current_tag: s
                     "role": chat["role"],
                     "content": chat["message"]
                 })
-            
         messages.append({
             "role": "user",
             "content": RESPONSE_ANALYSIS_PROMPT.format(
@@ -334,7 +323,8 @@ async def final_chat_analysis(session_id: str, chat_history, intent_data) -> Dic
                 "innovation_and_solutions_spark",
                 "workplace_engagement_ally",
                 "change_adaptation_advisor",
-                "leadership_foundations_guide"
+                "leadership_foundations_guide",
+                "ForwardingRequestToHR"
             ]
             
             if analysis_result.get("recommended_mentor") not in valid_mentors:
@@ -359,7 +349,7 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
         # New conversation
         if not chat_history or len(chat_history) == 0:
             logger.info(f"[Session: {session_id}] Starting new conversation")
-            employee_profile = await create_employee_profile(employee_id)
+            employee_profile = await get_employee_profile_json(employee_id)
             
             intent_data = await extract_intent_from_employee(employee_profile, session_id)
             if not intent_data:
@@ -392,7 +382,6 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             logger.info(f"[Session: {session_id}] Mentor already assigned for this conversation")
             return {
                 "response": await mentor_chat_completion(employee_id, intent_data, chat_history, session_id, message),
-                "conversation_status": "complete",
                 "intent_data": intent_data
             }
         
@@ -413,15 +402,18 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             not current_tag or 
             number >= len(intent_data["tags"])):
             logger.info(f"[Session: {session_id}] Conversation complete - Limits reached")
-            await save_conversation_status(session_id, "complete")
             final_analysis = await final_chat_analysis(session_id, chat_history, intent_data)
             intent_data["chat_completed"] = True
             intent_data["chat_analysis"] = final_analysis
+            intent_data["chat_analysis"]["updated_at"] = datetime.now(timezone.utc)
             
             await save_intent_data(employee_id, session_id, intent_data)
+            if final_analysis['recommended_mentor'] == 'ForwardingRequestToHR':
+                response = "Your issue has been forwarded to HR Management. Please wait for their response."
+            else:
+                response = f"Thank you for sharing your concerns. Based on our conversation, I recommend you speak with {final_analysis['recommended_mentor']}. You can continue the conversation with them directly in this chat."
             return {
-                "response": f"Thank you for sharing. I'll make sure to get this information to the right team. After analyzing your conversation, I recommend you to talk to a {final_analysis['recommended_mentor']}. You can just say Hi to start the conversation with the mentor.",
-                "conversation_status": "complete",
+                "response": response,
                 "intent_data": intent_data
             }
         
@@ -447,17 +439,19 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             number += 1
         
         # Check if conversation should end after analysis
-        if number >= len(intent_data["tags"]):
+        if number >= len(intent_data["tags"]) or analysis["force_conversation_end"]:
             logger.info(f"[Session: {session_id}] Conversation complete - Analysis based")
-            await save_conversation_status(session_id, "complete")
             final_analysis = await final_chat_analysis(session_id, chat_history, intent_data)
             intent_data["chat_completed"] = True
             intent_data["chat_analysis"] = final_analysis
             
             await save_intent_data(employee_id, session_id, intent_data)
+            if final_analysis['recommended_mentor'] == 'ForwardingRequestToHR':
+                response = "Your issue has been forwarded to HR Management. Please wait for their response."
+            else:
+                response = f"Thank you for sharing your concerns. Based on our conversation, I recommend you speak with {final_analysis['recommended_mentor']}. You can continue the conversation with them directly in this chat."
             return {
-                "response": f"Thank you for sharing. I'll make sure to get this information to the right team. After analyzing your conversation, I recommend you to talk to a {final_analysis['recommended_mentor']}. You can just say Hi to start the conversation with the mentor.",
-                "conversation_status": "complete",
+                "response": response,
                 "intent_data": intent_data
             }
 
@@ -480,7 +474,6 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
         logger.info(f"[Session: {session_id}] Successfully completed chat iteration")
         return {
             "response": next_question, 
-            "conversation_status": "ongoing", 
             "intent_data": intent_data
         }
 
@@ -488,36 +481,95 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
         logger.error(f"[Session: {session_id}] Error in chat completion: {str(e)}", exc_info=True)
         return {"error": "An error occurred during the conversation", "conversation_status": "error"}
     
+async def is_chat_required(employee_id: str) -> bool:
+    """
+    Determine if chat is required based on analyzed profile and intent data
+    Returns True if:
+    1. Predicted score is <= 2.5
+    2. Actual emotion is "Sad" or "Frustrated"
+    3. No intent data exists for today
+    """
+    try:
+        # Get current IST date
+        current_utc = datetime.now(timezone.utc)
+        ist_tz = pytz.timezone('Asia/Kolkata')
+        current_ist = current_utc.astimezone(ist_tz)
+        current_ist_date = current_ist.date().isoformat()
+
+        # Get latest analyzed profile
+        latest_analysis = await async_db["analyzed_profile"].find_one(
+            {"Employee_ID": employee_id},
+            sort=[("timestamp", -1)]
+        )
+
+        if not latest_analysis:
+            logger.info(f"No analyzed profile found for {employee_id}. Chat required.")
+            return True
+
+        # Check if we have intent data for today
+        today_intent = await async_db["intent_data"].find_one(
+            {
+                "employee_id": employee_id,
+                "intent_data.chat_completed": True,
+                "ist_date": current_ist_date
+            }
+        )
+
+        if today_intent:
+            logger.info(f"Chat already completed today for {employee_id}. Chat not required.")
+            return False
+
+        # Check predicted score and emotions
+        predicted_score = latest_analysis.get("Predicted", 0)
+        actual_emotion = latest_analysis.get("Actual_Emotion", "unknown")
+
+        # If predicted score is low or emotions indicate distress
+        if predicted_score <= 2.5:
+            logger.info(f"Low predicted score ({predicted_score}) for {employee_id}. Chat required.")
+            return True
+
+        if actual_emotion in ["Sad", "Frustrated"]:
+            logger.info(f"Concerning emotion state ({actual_emotion}) for {employee_id}. Chat required.")
+            return True
+
+        logger.info(f"No chat required for {employee_id}")
+        return False
+
+    except Exception as e:
+        logger.error(f"Error checking chat requirement for {employee_id}: {str(e)}")
+        return True  # Default to requiring chat if there's an error
     
 if __name__ == "__main__":
     import asyncio
 
     async def main():
-        try:
-            session_id = "98162e50-00d8-4a51-bb7c-ae29a3776142"
+        
+        await extract_questions("Lack_of_Engagement")
+        # try:
+        #     session_id = "98162e50-00d8-4a51-bb7c-ae29a3776142"
             
-            # Get chat history and intent data
-            chat_history = await get_chat_history(session_id)
-            if not chat_history:
-                print("No chat history found")
-                return
+        #     # Get chat history and intent data
+        #     chat_history = await get_chat_history(session_id)
+        #     if not chat_history:
+        #         print("No chat history found")
+        #         return
                 
-            intent_data = await get_intent_data(session_id)
-            if not intent_data:
-                print("No intent data found")
-                return
+        #     intent_data = await get_intent_data(session_id)
+        #     if not intent_data:
+        #         print("No intent data found")
+        #         return
             
-            # Perform final analysis
-            result = await final_chat_analysis(
-                session_id=session_id,
-                chat_history=chat_history,
-                intent_data=intent_data
-            )
+        #     # Perform final analysis
+        #     result = await final_chat_analysis(
+        #         session_id=session_id,
+        #         chat_history=chat_history,
+        #         intent_data=intent_data
+        #     )
             
-            print("\nFinal Analysis:", result)
+        #     print("\nFinal Analysis:", result)
             
-        except Exception as e:
-            print(f"An error occurred: {str(e)}")
+        # except Exception as e:
+        #     print(f"An error occurred: {str(e)}")
 
     # Run all async operations in a single event loop
     asyncio.run(main())

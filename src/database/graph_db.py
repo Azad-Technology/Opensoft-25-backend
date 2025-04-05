@@ -6,7 +6,6 @@ from utils.config import settings
 question_bank = Path(__file__).resolve().parent.parent / "analysis" / "data" / "tagged_questions.json"
 question_relations = Path(__file__).resolve().parent.parent / "analysis" / "data" / "question_relationships.json"
 
-
 class Neo4j:
     def __init__(self, uri, user, password):
         self.driver = GraphDatabase.driver(uri, auth=(user, password))
@@ -15,16 +14,16 @@ class Neo4j:
         self.driver.close()
     
     # To be run once: Uploads the entire data to neo4j
-    def upload_data(self, data, relationships):
+    def upload_data(self, data, relationships=None):
         with self.driver.session() as session:
             print('Uploading questions...')
             for record in data:
                 session.execute_write(self._create_node, record)
             print('Questions uploaded')
-            print('Creating relations...')
-            for relationship in relationships:
-                session.execute_write(self._create_relationship, relationship)
-            print('Relations created')
+            # print('Creating relations...')
+            # for relationship in relationships:
+            #     session.execute_write(self._create_relationship, relationship)
+            # print('Relations created')
 
     def get_questions_by_tag(self, tag):
         with self.driver.session() as session:
@@ -88,13 +87,8 @@ class Neo4j:
         )
         tx.run(query, from_id=relationship["from_id"], to_id=relationship["to_id"], score=relationship["score"])
 
-async def extract_questions(tag: str):
-    return []
-
 
 if __name__ == "__main__":
-
-    # Opened csv files
     with open(question_bank, "r", encoding="utf-8") as file:
         tagged_questions = json.load(file)
     
@@ -102,12 +96,10 @@ if __name__ == "__main__":
         question_relationships = json.load(file)
 
     # Uploader
-    uploader = Neo4j("neo4j+s://419ac377.databases.neo4j.io", settings.NEO4J_USER, settings.NEO4J_PASSWORD)
-    # uploader.upload_data(tagged_questions , question_relationships)  TO BE RUN ONCE
+    uploader = Neo4j(settings.NEO4J_URI, settings.NEO4J_USER, settings.NEO4J_PASSWORD)
+    # uploader.upload_data(tagged_questions)  # TO BE RUN ONCE
 
-    questions = uploader.get_questions_by_tag('Workplace_Conflict')
-    print(len(questions))
+    questions = uploader.get_questions_by_tag('Lack_of_Engagement')
+    print(questions)
     uploader.close()
     print("Data uploaded successfully!")
-
-

@@ -38,6 +38,9 @@ async def mentor_chat_completion(employee_id: str, intent_data: Dict, chat_histo
         if not mentor_name:
             logger.error(f"[Session: {session_id}] No mentor assigned")
             return "I apologize, but I don't see a mentor assigned to this conversation. Please start a new conversation."
+        
+        if mentor_name in ["ForwardingRequestToHR"]:
+            return "Your issue has been forwarded to HR Management. Please wait for their response."
 
         # Get appropriate system prompt based on mentor name
         system_prompts = {
