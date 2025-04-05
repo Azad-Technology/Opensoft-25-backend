@@ -405,6 +405,7 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             final_analysis = await final_chat_analysis(session_id, chat_history, intent_data)
             intent_data["chat_completed"] = True
             intent_data["chat_analysis"] = final_analysis
+            intent_data["chat_analysis"]["updated_at"] = datetime.now(timezone.utc)
             
             await save_intent_data(employee_id, session_id, intent_data)
             if final_analysis['recommended_mentor'] == 'ForwardingRequestToHR':

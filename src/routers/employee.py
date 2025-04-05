@@ -52,7 +52,9 @@ async def get_employee_summary(current_user: dict = Depends(get_current_user)):
                 "meetings_attended": 0
             },
             "leaves": {},
-            "all_leaves": []
+            "all_leaves": [],
+            "projects": get_project_details(),
+            "is_chat_required": True
         }
 
         # Process Vibe Data if available
@@ -288,6 +290,7 @@ async def submit_vibe(
                 raise HTTPException(
                     status_code=400,
                     detail="Vibe score already submitted today"
+
                 )
 
         # Create new submission
