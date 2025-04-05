@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from collections import defaultdict
 from typing import Dict
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -21,6 +21,9 @@ logger = setup_logger("src/routers/admin.py")
 async def get_root():
     return {"message": "Welcome to the Admin API"}
 
+from datetime import datetime, timedelta
+from typing import Dict, List
+
 @router.get("/overall_dashboard")
 async def get_overall_dashboard(current_user: dict = Depends(get_current_user)):
     try:
@@ -30,9 +33,135 @@ async def get_overall_dashboard(current_user: dict = Depends(get_current_user)):
                 detail="Unauthorized to see the dashboard"
             )
         
+        today = datetime.utcnow().date()
+        today_start = datetime(today.year, today.month, today.day)
+        today_end = today_start + timedelta(days=1)
+        seven_days_ago = today_start - timedelta(days=7)
+
+        def get_last_7_days():
+            return [(today - timedelta(days=i)).isoformat() for i in range(6, -1, -1)]
         
-        pass
+        # Helper function to safely get nested values
+        def get_nested(data, *keys, default=None):
+            for key in keys:
+                try:
+                    data = data[key]
+                except (KeyError, TypeError):
+                    return default
+            return data
+        
+        # Get all collections we need
+        intent_data, vibemeter_data, users_data = await asyncio.gather(
+            async_db["intent_data"].find({
+                "updated_at": {
+                    "$gte": today_start,
+                    "$lt": today_end
+                }
+            }).to_list(length=None),
+            async_db["vibemeter"].find({
+                "Response_Date": {
+                    "$gte": seven_days_ago,
+                    "$lte": today_end
+                }
+            }).to_list(length=None),
+            async_db["users"].find({"role": "employee"}).to_list(length=None)
+        )
+        
+        # 1. Calculate overall_risk_score (average risk_level of today's records)
+        overall_risk_score = 0.0
+        valid_intents = [
+            intent for intent in intent_data 
+            if get_nested(intent, "intent_data", "chat_completed") is True
+        ]
+        
+        if valid_intents:
+            total_risk = sum(
+                get_nested(intent, "intent_data", "chat_analysis", "risk_assessment", "risk_level", default=0)
+                for intent in valid_intents
+            )
+            overall_risk_score = round(total_risk / len(valid_intents), 2)
+        
+        # 2. Get critical cases (risk_level > 3)
+        critical_intents = [
+            intent for intent in intent_data 
+            if get_nested(intent, "intent_data", "chat_analysis", "risk_assessment", "risk_level", default=0) > 3
+        ]
+        
+        critical_cases = []
+        for intent in critical_intents:
+            user = next((u for u in users_data if u.get("employee_id") == intent.get("employee_id")), None)
+            risk_level = get_nested(intent, "intent_data", "chat_analysis", "risk_assessment", "risk_level", default=0)
+            
+            critical_cases.append({
+                "employee_id": intent.get("employee_id", "Unknown"),
+                "name": user.get("name", "Unknown") if user else "Unknown",
+                "email": user.get("email", "Unknown") if user else "Unknown",
+                "primary_issues": get_nested(intent, "intent_data", "primary_issues", default="No issues specified"),
+                "risk_level": risk_level,
+                "chat_summary": get_nested(intent, "intent_data", "chat_analysis", "summary", default="No summary available"),
+                "recommended_action": get_nested(intent, "intent_data", "chat_analysis", "recommended_mentor", default="No recommendation"),
+                "wellbeing_score": get_nested(intent, "intent_data", "chat_analysis", "wellbeing_analysis", "composite_score", default=0)
+            })
+        
+        # 3. Get total employees
+        total_employees = len(users_data)
+        
+        # 4. Get overall mood and mood distribution
+        latest_vibes = {}
+        for vibe in sorted(vibemeter_data, key=lambda x: (x.get("Employee_ID", ""), x.get("Response_Date", "")), reverse=True):
+            if "Employee_ID" in vibe and vibe["Employee_ID"] not in latest_vibes:
+                latest_vibes[vibe["Employee_ID"]] = vibe.get("Vibe_Score", 0)
+        
+        vibe_scores = list(latest_vibes.values())
+        overall_mood = round(sum(vibe_scores) / len(vibe_scores), 2) if vibe_scores else 0.0
+        
+        mood_distribution = {
+            "excited": sum(1 for v in vibe_scores if v == 5),
+            "happy": sum(1 for v in vibe_scores if v == 4),
+            "ok": sum(1 for v in vibe_scores if v == 3),
+            "sad": sum(1 for v in vibe_scores if v == 2),
+            "frustrated": sum(1 for v in vibe_scores if v == 1)
+        }
+        
+        # 5. Weekly risk trend
+        weekly_risk_trend: Dict[str, float] = {}
+        for day in get_last_7_days():
+            day_start = datetime.strptime(day, "%Y-%m-%d")
+            day_end = day_start + timedelta(days=1)
+            
+            day_intents = await async_db["intent_data"].find({
+                "updated_at": {
+                    "$gte": day_start,
+                    "$lt": day_end
+                }
+            }).to_list(length=None)
+            
+            valid_day_intents = [
+                intent for intent in day_intents 
+                if get_nested(intent, "intent_data", "chat_completed") is True
+            ]
+            
+            if valid_day_intents:
+                day_risk = sum(
+                    get_nested(intent, "intent_data", "chat_analysis", "risk_assessment", "risk_level", default=0)
+                    for intent in valid_day_intents
+                )
+                weekly_risk_trend[day] = round(day_risk / len(valid_day_intents), 2)
+            else:
+                weekly_risk_trend[day] = 0.0
+        
+        return {
+            "overall_risk_score": overall_risk_score,
+            "critical_cases": critical_cases,
+            "total_employees": total_employees,
+            "overall_mood": overall_mood,
+            "mood_distribution": mood_distribution,
+            "weekly_risk_trend": weekly_risk_trend,
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
     
+    except HTTPException:
+        raise
     except Exception as e:
         return {
             "error": "Could not generate overall dashboard",
