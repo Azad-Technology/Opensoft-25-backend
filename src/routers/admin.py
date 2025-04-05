@@ -21,6 +21,8 @@ logger = setup_logger("src/routers/admin.py")
 async def get_root():
     return {"message": "Welcome to the Admin API"}
 
+# @router
+
 @router.get("/{employee_id}/summary")
 async def get_employee_summary(employee_id: str, current_user: dict = Depends(get_current_user)):
     try:

@@ -129,6 +129,27 @@ async def get_employee_summary(current_user: dict = Depends(get_current_user)):
                 ]
             except Exception as e:
                 logger.error(f"Error processing rewards data: {str(e)}")
+                
+        # Get current time in UTC and IST
+        current_utc = datetime.now(timezone.utc)
+        ist_tz = pytz.timezone('Asia/Kolkata')
+        current_ist = current_utc.astimezone(ist_tz)
+
+        # Get latest vibe submission for this employee
+        latest_vibe = await async_db.vibemeter.find_one(
+            {"Employee_ID": current_user["employee_id"]},
+            sort=[("Response_Date", -1)]
+        )
+
+        response["is_vibe_feedback_required"] = True
+        # Check if already submitted today
+        if latest_vibe and "Response_Date" in latest_vibe:
+            latest_vibe_utc = latest_vibe["Response_Date"].replace(tzinfo=timezone.utc)
+            latest_vibe_ist = latest_vibe_utc.astimezone(ist_tz)
+
+            # Check if latest submission was on the same day (IST)
+            if latest_vibe_ist.date() == current_ist.date():
+                response["is_vibe_feedback_required"] = False
 
         # Process Leave Data if available
         if leave_data and len(leave_data) > 0:
