@@ -29,8 +29,8 @@ async def get_overall_dashboard(current_user: dict = Depends(get_current_user)):
                 status_code=403,
                 detail="Unauthorized to see the dashboard"
             )
-        
-        
+    
+    
         pass
     
     except Exception as e:
@@ -250,8 +250,8 @@ async def get_employee_summary(employee_id: str, current_user: dict = Depends(ge
                     "risk_assessment": chat_data.get("risk_assessment", {}),
                     "updated_at": serialize_datetime(chat_data.get("updated_at"))
                 }
+                
         
-
         # Build comprehensive response
         response = {
             "name": employee_name,
@@ -299,6 +299,13 @@ async def get_employee_summary(employee_id: str, current_user: dict = Depends(ge
 @router.get("/employees/all")
 async def get_all_employees(current_user: dict = Depends(get_current_user)):
     try:
+        
+        if current_user["role_type"] != "hr":
+            raise HTTPException(
+                status_code=403,
+                detail="Unauthorized to see the summary"
+            )
+        
         # Pipeline to get latest vibemeter for each employee
         vibe_pipeline = [
             {
@@ -370,11 +377,13 @@ async def get_all_employees(current_user: dict = Depends(get_current_user)):
 
         # Get all data in parallel with optimized queries
         users_data, vibe_data, intent_data, performance_data = await asyncio.gather(
-            async_db["users"].find().to_list(length=None),
+            async_db["users"].find({"role_type": "employee"}).to_list(length=None),
             async_db["vibemeter"].aggregate(vibe_pipeline).to_list(length=None),
             async_db["intent_data"].aggregate(intent_pipeline).to_list(length=None),
             async_db["performance"].aggregate(performance_pipeline).to_list(length=None)
         )
+        
+        print(len(users_data), len(vibe_data), len(intent_data), len(performance_data))
 
         # Convert pipeline results to maps for easier access
         vibe_map = {doc['_id']: doc['latest_vibe'] for doc in vibe_data}

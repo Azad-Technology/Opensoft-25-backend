@@ -1,5 +1,6 @@
 import pandas as pd
 from datetime import UTC, datetime
+from src.analysis.dummy_data import generate_dummy_data
 from utils.auth import get_password_hash
 from utils.config import get_async_database
 import asyncio
@@ -128,13 +129,124 @@ async def create_hr_users():
             
     except Exception as e:
         print(f"Error creating HR users: {str(e)}")
-        
-        
-if __name__ == "__main__":
+    
 
-    # asyncio.run(create_hr_users())
+async def add_employee_to_users(emp_id, hr_user):
+    """Add employee to users collection"""
+    fake = Faker()
+    user_data = {
+        "role_type": "employee",
+        "name": fake.name(),
+        "role": "employee",
+        "employee_id": emp_id,
+        "email": f"{emp_id}@deloitte.com",
+        "password": get_password_hash("root"),
+        "created_at": datetime.now(UTC),
+        "created_by": hr_user["employee_id"]
+    }
     
-    # Upload data
-    # asyncio.run(preprocess_and_upload_data())deloitte.com
+    await async_db.users.insert_one(user_data)
+    return user_data
+
+async def save_to_mongodb(dataset, hr_user):
+    """Save the generated data to MongoDB collections"""
     
-    pass
+    # Clear existing collections
+    # collections = ['activity', 'leave', 'onboarding', 'performance', 'rewards', 'vibemeter']
+    # for collection in collections:
+    #     await async_db[collection].delete_many({})
+
+    for data in dataset:
+        emp_id = data["Employee_ID"]
+        
+        # Add user to users collection
+        user_data = await add_employee_to_users(emp_id, hr_user)
+
+        # Activity data
+        activity_records = []
+        for activity in data["Activity"]:
+            activity_records.append({
+                "Employee_ID": emp_id,
+                "Date": datetime.strptime(activity["Date"], "%m/%d/%Y"),
+                "Teams_Messages_Sent": activity["Messages"],
+                "Emails_Sent": activity["Emails"],
+                "Meetings_Attended": activity["Meetings"],
+                "Work_Hours": activity["Work_Hours"]
+            })
+        await async_db.activity.insert_many(activity_records)
+
+        # Leave data
+        leave_records = []
+        for leave in data["Leaves"]:
+            leave_records.append({
+                "Employee_ID": emp_id,
+                "Leave_Type": leave["Leave_Type"],
+                "Leave_Days": leave["Leave_Days"],
+                "Leave_Start_Date": datetime.strptime(leave["Leave_Start_Date"], "%m/%d/%Y"),
+                "Leave_End_Date": datetime.strptime(leave["Leave_End_Date"], "%m/%d/%Y")
+            })
+        await async_db.leave.insert_many(leave_records)
+
+        # Onboarding data
+        onboarding_record = {
+            "Employee_ID": emp_id,
+            "Joining_Date": data["Onboarding"]["Joining_Date"],
+            "Onboarding_Feedback": data["Onboarding"]["Onboarding_Feedback"],
+            "Mentor_Assigned": data["Onboarding"]["Mentor_Assigned"],
+            "Initial_Training_Completed": data["Onboarding"]["Initial_Training_Completed"]
+        }
+        await async_db.onboarding.insert_one(onboarding_record)
+
+        # Performance data
+        performance_record = {
+            "Employee_ID": emp_id,
+            "Review_Period": data["Performance"]["Review_Period"],
+            "Performance_Rating": data["Performance"]["Performance_Rating"],
+            "Manager_Feedback": data["Performance"]["Manager_Feedback"],
+            "Promotion_Consideration": data["Performance"]["Promotion_Consideration"]
+        }
+        await async_db.performance.insert_one(performance_record)
+
+        # Rewards data
+        reward_records = []
+        for reward in data["Rewards"]:
+            reward_records.append({
+                "Employee_ID": emp_id,
+                "Award_Type": reward["Award_Type"],
+                "Award_Date": datetime.strptime(reward["Award_Date"], "%Y-%m-%d"),
+                "Reward_Points": reward["Reward_Points"]
+            })
+        await async_db.rewards.insert_many(reward_records)
+
+        # Vibe scores data
+        vibe_records = []
+        for date, score in data["Vibe_Scores"].items():
+            vibe_records.append({
+                "Employee_ID": emp_id,
+                "Response_Date": datetime.strptime(date, "%Y-%m-%d"),
+                "Vibe_Score": score
+            })
+        await async_db.vibemeter.insert_many(vibe_records)
+        
+        
+async def main():
+    # Get HR user from database
+    await create_hr_users()
+    
+    hr_user = await async_db.users.find_one({"employee_id": "HR00001"})
+    if not hr_user:
+        print("HR user not found!")
+        return
+    
+    # collections = ['activity', 'leave', 'onboarding', 'performance', 'rewards', 'vibemeter']
+    # for collection in collections:
+    #     await async_db[collection].delete_many({})
+
+    # Generate and save data
+    dataset = generate_dummy_data(10)
+    await save_to_mongodb(dataset, hr_user)
+    print("Data successfully saved to MongoDB!")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+    

@@ -6,48 +6,114 @@ import os
 
 behavior_patterns = {
     "Work_Overload_Stress": {
-        "work_hours": (10, 12), "messages": (60, 90), "emails": (15, 30), "meetings": (4, 6), "trend": "decline",
-        "leave_percentage": 0.12, "leave_probabilities": {"Sick Leave": 0.5, "Personal Leave": 0.3, "Vacation Leave": 0.1, "Unpaid Leave": 0.1}
+        "work_hours": (10, 12),
+        "messages": (60, 90),
+        "emails": (15, 30),
+        "meetings": (4, 6),
+        "trend": "decline",
+        "leave_percentage": 0.12,
+        "leave_probabilities": {"Sick Leave": 0.5, "Personal Leave": 0.3, "Vacation Leave": 0.1, "Unpaid Leave": 0.1},
+        "award_percentage": 0.01
     },
     "Lack_of_Engagement": {
-        "work_hours": (4, 6), "messages": (5, 15), "emails": (1, 5), "meetings": (0, 2), "trend": "low",
-        "leave_percentage": 0.06, "leave_probabilities": {"Sick Leave": 0.3, "Personal Leave": 0.4, "Vacation Leave": 0.2, "Unpaid Leave": 0.1}
+        "work_hours": (4, 6),
+        "messages": (5, 15),
+        "emails": (1, 5),
+        "meetings": (0, 2),
+        "trend": "low",
+        "leave_percentage": 0.06,
+        "leave_probabilities": {"Sick Leave": 0.3, "Personal Leave": 0.4, "Vacation Leave": 0.2, "Unpaid Leave": 0.1},
+        "award_percentage": 0.01
     },
     "Feeling_Undervalued": {
-        "work_hours": (5, 8), "messages": (20, 40), "emails": (4, 12), "meetings": (2, 4), "trend": "fluctuate",
-        "leave_percentage": 0.09, "leave_probabilities": {"Sick Leave": 0.3, "Personal Leave": 0.5, "Vacation Leave": 0.1, "Unpaid Leave": 0.1}
+        "work_hours": (5, 8),
+        "messages": (20, 40),
+        "emails": (4, 12),
+        "meetings": (2, 4),
+        "trend": "fluctuate",
+        "leave_percentage": 0.09,
+        "leave_probabilities": {"Sick Leave": 0.3, "Personal Leave": 0.5, "Vacation Leave": 0.1, "Unpaid Leave": 0.1},
+        "award_percentage": 0.02
     },
     "Career_Concerns": {
-        "work_hours": (7, 9), "messages": (25, 50), "emails": (6, 15), "meetings": (3, 5), "trend": "erratic",
-        "leave_percentage": 0.1, "leave_probabilities": {"Sick Leave": 0.4, "Personal Leave": 0.3, "Vacation Leave": 0.2, "Unpaid Leave": 0.1}
+        "work_hours": (7, 9),
+        "messages": (25, 50),
+        "emails": (6, 15),
+        "meetings": (3, 5),
+        "trend": "erratic",
+        "leave_percentage": 0.1,
+        "leave_probabilities": {"Sick Leave": 0.4, "Personal Leave": 0.3, "Vacation Leave": 0.2, "Unpaid Leave": 0.1},
+        "award_percentage": 0.02
     },
     "Lack_of_Work_Life_Balance": {
-        "work_hours": (10, 14), "messages": (30, 70), "emails": (8, 20), "meetings": (3, 5), "trend": "unstable",
-        "leave_percentage": 0.13, "leave_probabilities": {"Sick Leave": 0.3, "Personal Leave": 0.4, "Vacation Leave": 0.2, "Unpaid Leave": 0.1}
+        "work_hours": (10, 14),
+        "messages": (30, 70),
+        "emails": (8, 20),
+        "meetings": (3, 5),
+        "trend": "unstable",
+        "leave_percentage": 0.13,
+        "leave_probabilities": {"Sick Leave": 0.3, "Personal Leave": 0.4, "Vacation Leave": 0.2, "Unpaid Leave": 0.1},
+        "award_percentage": 0.02
     },
     "Recognition_Gap": {
-        "work_hours": (7, 10), "messages": (40, 60), "emails": (8, 18), "meetings": (3, 4), "trend": "drop",
-        "leave_percentage": 0.1, "leave_probabilities": {"Sick Leave": 0.3, "Personal Leave": 0.4, "Vacation Leave": 0.2, "Unpaid Leave": 0.1}
+        "work_hours": (7, 10),
+        "messages": (40, 60),
+        "emails": (8, 18),
+        "meetings": (3, 4),
+        "trend": "drop",
+        "leave_percentage": 0.1,
+        "leave_probabilities": {"Sick Leave": 0.3, "Personal Leave": 0.4, "Vacation Leave": 0.2, "Unpaid Leave": 0.1},
+        "award_percentage": 0.01
     },
     "Highly_Engaged_Employee": {
-        "work_hours": (8, 10), "messages": (60, 100), "emails": (15, 30), "meetings": (5, 7), "trend": "stable",
-        "leave_percentage": 0.04, "leave_probabilities": {"Sick Leave": 0.2, "Personal Leave": 0.3, "Vacation Leave": 0.4, "Unpaid Leave": 0.1}
+        "work_hours": (8, 10),
+        "messages": (60, 100),
+        "emails": (15, 30),
+        "meetings": (5, 7),
+        "trend": "stable",
+        "leave_percentage": 0.04,
+        "leave_probabilities": {"Sick Leave": 0.2, "Personal Leave": 0.3, "Vacation Leave": 0.4, "Unpaid Leave": 0.1},
+        "award_percentage": 0.05
     },
     "High_Performance_Contributor": {
-        "work_hours": (9, 11), "messages": (80, 120), "emails": (25, 45), "meetings": (6, 8), "trend": "stable",
-        "leave_percentage": 0.05, "leave_probabilities": {"Sick Leave": 0.2, "Personal Leave": 0.3, "Vacation Leave": 0.4, "Unpaid Leave": 0.1}
+        "work_hours": (9, 11),
+        "messages": (80, 120),
+        "emails": (25, 45),
+        "meetings": (6, 8),
+        "trend": "stable",
+        "leave_percentage": 0.05,
+        "leave_probabilities": {"Sick Leave": 0.2, "Personal Leave": 0.3, "Vacation Leave": 0.4, "Unpaid Leave": 0.1},
+        "award_percentage": 0.05
     },
     "Innovative_Problem_Solver": {
-        "work_hours": (7, 9), "messages": (35, 65), "emails": (12, 25), "meetings": (3, 5), "trend": "stable",
-        "leave_percentage": 0.06, "leave_probabilities": {"Sick Leave": 0.3, "Personal Leave": 0.3, "Vacation Leave": 0.3, "Unpaid Leave": 0.1}
+        "work_hours": (7, 9),
+        "messages": (35, 65),
+        "emails": (12, 25),
+        "meetings": (3, 5),
+        "trend": "stable",
+        "leave_percentage": 0.06,
+        "leave_probabilities": {"Sick Leave": 0.3, "Personal Leave": 0.3, "Vacation Leave": 0.3, "Unpaid Leave": 0.1},
+        "award_percentage": 0.04
     },
     "Strong_Team_Collaborator": {
-        "work_hours": (7, 10), "messages": (50, 80), "emails": (15, 28), "meetings": (4, 6), "trend": "increase",
-        "leave_percentage": 0.05, "leave_probabilities": {"Sick Leave": 0.3, "Personal Leave": 0.3, "Vacation Leave": 0.3, "Unpaid Leave": 0.1}
+        "work_hours": (7, 10),
+        "messages": (50, 80),
+        "emails": (15, 28),
+        "meetings": (4, 6),
+        "trend": "increase",
+        "leave_percentage": 0.05,
+        "leave_probabilities": {"Sick Leave": 0.3, "Personal Leave": 0.3, "Vacation Leave": 0.3, "Unpaid Leave": 0.1},
+        "award_percentage": 0.04
     },
     "Job_Satisfaction_Champion": {
-        "work_hours": (7, 9), "messages": (40, 70), "emails": (10, 20), "meetings": (2, 5), "trend": "consistent",
-        "leave_percentage": 0.04, "leave_probabilities": {"Sick Leave": 0.2, "Personal Leave": 0.4, "Vacation Leave": 0.3, "Unpaid Leave": 0.1}
+        "work_hours": (7, 9),
+        "messages": (40, 70),
+        "emails": (10, 20),
+        "meetings": (2, 5),
+        "trend": "consistent",
+        "leave_percentage": 0.04,
+        "leave_probabilities": {"Sick Leave": 0.2, "Personal Leave": 0.4, "Vacation Leave": 0.3, "Unpaid Leave": 0.1},
+        "award_percentage": 0.04
     }
 }
 
@@ -79,8 +145,9 @@ manager_feedback_mapping = {
 def determine_promotion(performance_rating):
     return "TRUE" if performance_rating >= 4 else "FALSE"
 
-def generate_employee_id():
-    return "EMP" + str(random.randint(1000, 9999))
+def generate_sequential_emp_id(index):
+    """Generate sequential employee IDs"""
+    return f"EMP{str(index+1).zfill(4)}"
 
 def generate_onboarding_data():
     entry = {
@@ -155,29 +222,35 @@ def generate_performance_data(employee_id, joining_date, behavior_distribution):
         "Promotion_Consideration": promotion_consideration
     }
 
-def generate_reward_data(employee_id, behavior_patterns, start_date, days):
+def generate_reward_data(employee_id, behavior_distribution, start_date, days):
     award_types = ["Innovation Award", "Leadership Excellence", "Best Team Player", "Star Performer"]
     rewards = []
-    for day in range(days):
-        date = start_date + timedelta(days=day)
-        behavior = random.choice(list(behavior_patterns.keys()))
-        performance_rating = random.randint(
-            behavior_performance_mapping[behavior][0],
-            behavior_performance_mapping[behavior][1]
-        )
-        if performance_rating >= 4:
-            rewards.append({
-                "Award_Type": random.choice(award_types),
-                "Award_Date": date.strftime('%Y-%m-%d'),
-                "Reward_Points": random.randint(50, 500)
-            })
+    
+    # Calculate total number of award days based on behavior distribution
+    award_days = 0
+    for behavior, behavior_days in behavior_distribution.items():
+        behavior_info = behavior_patterns[behavior]
+        award_days += int(behavior_days * behavior_info["award_percentage"])
+    
+    # Generate random dates for awards
+    all_possible_dates = [start_date + timedelta(days=x) for x in range(days)]
+    award_dates = random.sample(all_possible_dates, min(award_days, len(all_possible_dates)))
+    
+    # Generate awards for selected dates
+    for date in award_dates:
+        rewards.append({
+            "Award_Type": random.choice(award_types),
+            "Award_Date": date.strftime('%Y-%m-%d'),
+            "Reward_Points": random.randint(50, 500)
+        })
+    
     return rewards
 
 def calculate_vibe_scores(joining_date, behavior_distribution):
     total_days = (datetime.now() - joining_date).days
     vibe_scores = {}
     
-    # Define score ranges for different behavior types
+    # Define score ranges for different behavior types (using integers)
     behavior_scores = {
         "Work_Overload_Stress": (2, 3),
         "Lack_of_Engagement": (1, 2),
@@ -196,29 +269,83 @@ def calculate_vibe_scores(joining_date, behavior_distribution):
     for behavior, days in behavior_distribution.items():
         min_score, max_score = behavior_scores.get(behavior, (2, 3))
         for _ in range(days):
-            vibe_score = round(random.uniform(min_score, max_score), 2)
+            # Using randint instead of uniform for integer values
+            vibe_score = random.randint(min_score, max_score)
             vibe_scores[current_date.strftime('%Y-%m-%d')] = vibe_score
             current_date += timedelta(days=1)
     
     return vibe_scores
 
-def generate_dummy_data(num_entries=5, num_behaviors=3):
+def generate_dummy_data(num_entries=20):
     dataset = []
-    for _ in range(num_entries):
-        behaviors=[]
-        for _ in range(num_behaviors):
-            behaviors.append(input("Enter behavior pattern: "))
-        emp_id = generate_employee_id()
+    
+    # Define different behavior combinations for different employee types
+    employee_types = [
+        # High performers
+        ["Highly_Engaged_Employee", "High_Performance_Contributor", "Strong_Team_Collaborator"],
+        ["High_Performance_Contributor", "Innovative_Problem_Solver", "Job_Satisfaction_Champion"],
+        ["Innovative_Problem_Solver", "Strong_Team_Collaborator", "Highly_Engaged_Employee"],
+        
+        # Mixed performance
+        ["Highly_Engaged_Employee", "Career_Concerns", "Strong_Team_Collaborator"],
+        ["High_Performance_Contributor", "Work_Overload_Stress", "Strong_Team_Collaborator"],
+        ["Innovative_Problem_Solver", "Lack_of_Work_Life_Balance", "Job_Satisfaction_Champion"],
+        
+        # Struggling employees
+        ["Work_Overload_Stress", "Lack_of_Work_Life_Balance", "Career_Concerns"],
+        ["Lack_of_Engagement", "Feeling_Undervalued", "Recognition_Gap"],
+        ["Career_Concerns", "Recognition_Gap", "Feeling_Undervalued"],
+        
+        # Growth potential
+        ["Career_Concerns", "Strong_Team_Collaborator", "Innovative_Problem_Solver"],
+        ["Feeling_Undervalued", "High_Performance_Contributor", "Recognition_Gap"],
+        ["Work_Overload_Stress", "Highly_Engaged_Employee", "Lack_of_Work_Life_Balance"],
+        
+        # New joiners
+        ["Highly_Engaged_Employee", "Job_Satisfaction_Champion", "Career_Concerns"],
+        ["Strong_Team_Collaborator", "Innovative_Problem_Solver", "Work_Overload_Stress"],
+        
+        # Senior employees
+        ["High_Performance_Contributor", "Work_Overload_Stress", "Job_Satisfaction_Champion"],
+        ["Highly_Engaged_Employee", "Strong_Team_Collaborator", "Lack_of_Work_Life_Balance"],
+        
+        # Mixed scenarios
+        ["Recognition_Gap", "Innovative_Problem_Solver", "Strong_Team_Collaborator"],
+        ["Lack_of_Work_Life_Balance", "High_Performance_Contributor", "Career_Concerns"],
+        ["Feeling_Undervalued", "Highly_Engaged_Employee", "Work_Overload_Stress"],
+        ["Career_Concerns", "Job_Satisfaction_Champion", "Recognition_Gap"]
+    ]
+
+    # Shuffle the employee types list
+    random.shuffle(employee_types)
+
+    for i in range(num_entries):
+        behaviors = employee_types[i % len(employee_types)]  # Cycle through the shuffled behavior combinations
+        # Shuffle the behaviors for this specific employee
+        random.shuffle(behaviors)
+        
+        emp_id = generate_sequential_emp_id(i)
         onboarding_exp = generate_onboarding_data()
-        behavior_distribution = distribute_behavior_days((datetime.now() - onboarding_exp["Joining_Date"]).days, behaviors)
-        print(behavior_distribution)
+        behavior_distribution = distribute_behavior_days(
+            (datetime.now() - onboarding_exp["Joining_Date"]).days, 
+            behaviors
+        )
+        
         activity_data = generate_activity_data(onboarding_exp["Joining_Date"], behavior_distribution)
         leave_data = generate_leave_data(emp_id, onboarding_exp["Joining_Date"], behavior_distribution)
         performance_data = generate_performance_data(emp_id, onboarding_exp["Joining_Date"], behavior_distribution)
-        rewards = generate_reward_data(emp_id, behavior_patterns, onboarding_exp["Joining_Date"], (datetime.now() - onboarding_exp["Joining_Date"]).days)
+        rewards = generate_reward_data(
+            emp_id, 
+            behavior_distribution,
+            onboarding_exp["Joining_Date"], 
+            (datetime.now() - onboarding_exp["Joining_Date"]).days
+        )
         vibe_scores = calculate_vibe_scores(onboarding_exp["Joining_Date"], behavior_distribution)
+        
         dataset.append({
             "Employee_ID": emp_id,
+            "Employee_Type": f"Type_{i+1}",
+            "Behavior_Tags": behaviors,
             "Onboarding": onboarding_exp,
             "Activity": activity_data,
             "Leaves": leave_data,
@@ -226,6 +353,7 @@ def generate_dummy_data(num_entries=5, num_behaviors=3):
             "Rewards": rewards,
             "Vibe_Scores": vibe_scores
         })
+    
     return dataset
 
 def json_serial(obj):
@@ -233,8 +361,9 @@ def json_serial(obj):
         return obj.strftime("%Y-%m-%d %H:%M:%S")
     raise TypeError("Type not serializable")
 
-file_path = os.path.expanduser("~/Desktop/output.json")  # Saves to Desktop
-with open(file_path, "w") as file:
-    json.dump(generate_dummy_data(10, 3), file, indent=4, default=json_serial)
+if __name__ == "__main__":
+    file_path = os.path.expanduser("output.json")  # Saves to Desktop
+    with open(file_path, "w") as file:
+        json.dump(generate_dummy_data(20), file, indent=4, default=json_serial)
 
-print(f"JSON file successfully created at {file_path}")
+    print(f"JSON file successfully created at {file_path}")

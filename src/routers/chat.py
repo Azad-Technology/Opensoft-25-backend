@@ -51,8 +51,7 @@ async def start_chat(
 
         return {
             "session_id": session_id,
-            "response": response["response"],
-            "status": response["conversation_status"]
+            "response": response["response"]
         }
 
     except Exception as e:
