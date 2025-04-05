@@ -24,6 +24,18 @@ async def get_root():
 from datetime import datetime, timedelta
 from typing import Dict, List
 
+def get_last_7_days(today):
+            return [(today - timedelta(days=i)).isoformat() for i in range(6, -1, -1)]
+        
+        # Helper function to safely get nested values
+def get_nested(data, *keys, default=None):
+    for key in keys:
+        try:
+            data = data[key]
+        except (KeyError, TypeError):
+            return default
+    return data
+
 @router.get("/overall_dashboard")
 async def get_overall_dashboard(current_user: dict = Depends(get_current_user)):
     try:
@@ -37,26 +49,15 @@ async def get_overall_dashboard(current_user: dict = Depends(get_current_user)):
         today_start = datetime(today.year, today.month, today.day)
         today_end = today_start + timedelta(days=1)
         seven_days_ago = today_start - timedelta(days=7)
-
-        def get_last_7_days():
-            return [(today - timedelta(days=i)).isoformat() for i in range(6, -1, -1)]
-        
-        # Helper function to safely get nested values
-        def get_nested(data, *keys, default=None):
-            for key in keys:
-                try:
-                    data = data[key]
-                except (KeyError, TypeError):
-                    return default
-            return data
-        
+     
         # Get all collections we need
         intent_data, vibemeter_data, users_data = await asyncio.gather(
             async_db["intent_data"].find({
                 "updated_at": {
                     "$gte": today_start,
                     "$lt": today_end
-                }
+                },
+                "intent_data.chat_completed": True
             }).to_list(length=None),
             async_db["vibemeter"].find({
                 "Response_Date": {
@@ -89,18 +90,16 @@ async def get_overall_dashboard(current_user: dict = Depends(get_current_user)):
         
         critical_cases = []
         for intent in critical_intents:
-            user = next((u for u in users_data if u.get("employee_id") == intent.get("employee_id")), None)
+            # user = next((u for u in users_data if u.get("employee_id") == intent.get("employee_id")), None)
+            user = await async_db["users"].find_one({"employee_id": intent.get("employee_id")})
+            print('user: ', user)
             risk_level = get_nested(intent, "intent_data", "chat_analysis", "risk_assessment", "risk_level", default=0)
             
             critical_cases.append({
                 "employee_id": intent.get("employee_id", "Unknown"),
                 "name": user.get("name", "Unknown") if user else "Unknown",
                 "email": user.get("email", "Unknown") if user else "Unknown",
-                "primary_issues": get_nested(intent, "intent_data", "primary_issues", default="No issues specified"),
                 "risk_level": risk_level,
-                "chat_summary": get_nested(intent, "intent_data", "chat_analysis", "summary", default="No summary available"),
-                "recommended_action": get_nested(intent, "intent_data", "chat_analysis", "recommended_mentor", default="No recommendation"),
-                "wellbeing_score": get_nested(intent, "intent_data", "chat_analysis", "wellbeing_analysis", "composite_score", default=0)
             })
         
         # 3. Get total employees
@@ -125,15 +124,17 @@ async def get_overall_dashboard(current_user: dict = Depends(get_current_user)):
         
         # 5. Weekly risk trend
         weekly_risk_trend: Dict[str, float] = {}
-        for day in get_last_7_days():
+        for day in get_last_7_days(today):
             day_start = datetime.strptime(day, "%Y-%m-%d")
             day_end = day_start + timedelta(days=1)
+            # print('dates:', day_start, day_end)
             
             day_intents = await async_db["intent_data"].find({
                 "updated_at": {
                     "$gte": day_start,
                     "$lt": day_end
                 }
+
             }).to_list(length=None)
             
             valid_day_intents = [
@@ -142,6 +143,7 @@ async def get_overall_dashboard(current_user: dict = Depends(get_current_user)):
             ]
             
             if valid_day_intents:
+                print('day intents:', day)
                 day_risk = sum(
                     get_nested(intent, "intent_data", "chat_analysis", "risk_assessment", "risk_level", default=0)
                     for intent in valid_day_intents
