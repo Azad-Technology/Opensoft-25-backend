@@ -25,14 +25,33 @@ logger = setup_logger("src/routers/employee.py")
 async def get_employee_summary(current_user: dict = Depends(get_current_user)):
     try:
         employee_id = current_user["employee_id"]
-        
+        logger.info(f"Fetching dashboard data for employee ID: {employee_id}")
         # Get all data in parallel
         vibe_data, performance_data, activity_data, rewards_data, leave_data = await asyncio.gather(
-            async_db["vibemeter"].find({"Employee_ID": employee_id}).sort("Response_Date", -1).to_list(length=None),
-            async_db["performance"].find({"Employee_ID": employee_id}).to_list(length=None),
-            async_db["activity"].find({"Employee_ID": employee_id}).to_list(length=None),
-            async_db["rewards"].find({"Employee_ID": employee_id}).to_list(length=None),
-            async_db["leave"].find({"Employee_ID": employee_id}).to_list(length=None)
+            # Vibemeter - sort by Response_Date descending
+            async_db["vibemeter"].find(
+                {"Employee_ID": employee_id}
+            ).sort("Response_Date", -1).to_list(length=None),
+            
+            # Performance - sort by Review_Period descending
+            async_db["performance"].find(
+                {"Employee_ID": employee_id}
+            ).sort("Review_Period", -1).to_list(length=None),
+            
+            # Activity - sort by Date descending
+            async_db["activity"].find(
+                {"Employee_ID": employee_id}
+            ).sort("Date", -1).to_list(length=None),
+            
+            # Rewards - sort by Award_Date descending
+            async_db["rewards"].find(
+                {"Employee_ID": employee_id}
+            ).sort("Award_Date", -1).to_list(length=None),
+            
+            # Leave - sort by Leave_Start_Date descending
+            async_db["leave"].find(
+                {"Employee_ID": employee_id}
+            ).sort("Leave_Start_Date", -1).to_list(length=None)
         )
 
         # Initialize with default values
@@ -41,7 +60,7 @@ async def get_employee_summary(current_user: dict = Depends(get_current_user)):
             "vibe_trend": [],
             "leave_balance": 20,  # Default leave balance
             "meetings_attended": 0,
-            "performance_rating": None,
+            "performance_rating": [],
             "total_work_hours": 0,
             "average_work_hours": 0,
             "awards": [],
@@ -82,7 +101,9 @@ async def get_employee_summary(current_user: dict = Depends(get_current_user)):
         # Process Performance Data if available
         if performance_data and len(performance_data) > 0:
             try:
-                response["performance_rating"] = performance_data[0].get('Performance_Rating')
+                for performance in performance_data:
+                    performance.pop("_id", None)
+                response["performance_rating"] = performance_data
             except Exception as e:
                 logger.error(f"Error processing performance data: {str(e)}")
 
