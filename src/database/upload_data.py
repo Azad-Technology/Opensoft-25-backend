@@ -231,6 +231,12 @@ async def save_to_mongodb(dataset, hr_user):
         
 async def main():
     # Get HR user from database
+    
+    collections = ['users', 'activity', 'leave', 'onboarding', 'performance', 'rewards', 'vibemeter']
+    for collection in collections:
+        await async_db[collection].delete_many({})
+        
+    # Create HR users
     await create_hr_users()
     
     hr_user = await async_db.users.find_one({"employee_id": "HR00001"})
@@ -238,12 +244,10 @@ async def main():
         print("HR user not found!")
         return
     
-    # collections = ['activity', 'leave', 'onboarding', 'performance', 'rewards', 'vibemeter']
-    # for collection in collections:
-    #     await async_db[collection].delete_many({})
+    
 
     # Generate and save data
-    dataset = generate_dummy_data(10)
+    dataset = generate_dummy_data(2)
     await save_to_mongodb(dataset, hr_user)
     print("Data successfully saved to MongoDB!")
 

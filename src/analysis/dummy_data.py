@@ -163,13 +163,12 @@ def distribute_behavior_days(total_days, behaviors):
     weights.append(1 - sum(weights))
     return {behaviors[i]: int(total_days * weights[i]) for i in range(len(behaviors))}
 
-def generate_activity_data(joining_date,behaviour_pattern):
+def generate_activity_data(joining_date,behaviour_pattern, days):
     activity_data = []
     keys_list = list(behaviour_pattern.keys())
     for i in range(len(behaviour_pattern)):
         behavior = keys_list[i]
         behavior_info = behavior_patterns[behavior]
-        days = behaviour_pattern[behavior]
         for day in range(days):
             date = joining_date + timedelta(days=day)
             work_hours = random.randint(behavior_info["work_hours"][0], behavior_info["work_hours"][1])
@@ -331,7 +330,7 @@ def generate_dummy_data(num_entries=20):
             behaviors
         )
         
-        activity_data = generate_activity_data(onboarding_exp["Joining_Date"], behavior_distribution)
+        activity_data = generate_activity_data(onboarding_exp["Joining_Date"], behavior_distribution, days=(datetime.now() - onboarding_exp["Joining_Date"]).days)
         leave_data = generate_leave_data(emp_id, onboarding_exp["Joining_Date"], behavior_distribution)
         performance_data = generate_performance_data(emp_id, onboarding_exp["Joining_Date"], behavior_distribution)
         rewards = generate_reward_data(

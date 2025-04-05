@@ -1,4 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
+import random
+
+import pytz
 
 
 def get_vibe(score):
@@ -35,9 +38,18 @@ def process_doc(doc):
                 else:
                     processed[key] = value
             return processed
+        
+def convert_to_ist(utc_dt):
+    """Helper function to convert UTC datetime to IST"""
+    if not utc_dt:
+        return None
+    if not utc_dt.tzinfo:
+        utc_dt = utc_dt.replace(tzinfo=timezone.utc)
+    ist_tz = pytz.timezone('Asia/Kolkata')
+    return utc_dt.astimezone(ist_tz)
     
 def get_project_details():
-    return [
+    projects = [
         {
             'id': '1',
             'name': 'Website Redesign',
@@ -67,8 +79,131 @@ def get_project_details():
             'endDate': '2024-03-15',
             'progress': '100',
             'assignees': ['Robert K.', 'Lisa M.'],
+        },
+        {
+            'id': '4',
+            'name': 'AI Implementation',
+            'priority': 'high',
+            'status': 'in-progress',
+            'startDate': '2024-03-15',
+            'endDate': '2024-07-30',
+            'progress': '25',
+            'assignees': ['David W.', 'Anna P.'],
+        },
+        {
+            'id': '5',
+            'name': 'Security Audit',
+            'priority': 'high',
+            'status': 'not-started',
+            'startDate': '2024-04-10',
+            'endDate': '2024-05-10',
+            'progress': '0',
+            'assignees': ['Tom H.', 'Jessica R.'],
+        },
+        {
+            'id': '6',
+            'name': 'Cloud Migration',
+            'priority': 'medium',
+            'status': 'in-progress',
+            'startDate': '2024-03-01',
+            'endDate': '2024-06-01',
+            'progress': '45',
+            'assignees': ['Mark L.', 'Sophie B.'],
+        },
+        {
+            'id': '7',
+            'name': 'E-commerce Integration',
+            'priority': 'high',
+            'status': 'not-started',
+            'startDate': '2024-05-01',
+            'endDate': '2024-07-15',
+            'progress': '0',
+            'assignees': ['Chris M.', 'Rachel S.'],
+        },
+        {
+            'id': '8',
+            'name': 'CRM Implementation',
+            'priority': 'medium',
+            'status': 'completed',
+            'startDate': '2024-01-15',
+            'endDate': '2024-03-01',
+            'progress': '100',
+            'assignees': ['Peter K.', 'Emma T.'],
+        },
+        {
+            'id': '9',
+            'name': 'Database Optimization',
+            'priority': 'low',
+            'status': 'in-progress',
+            'startDate': '2024-03-10',
+            'endDate': '2024-04-10',
+            'progress': '75',
+            'assignees': ['James B.', 'Linda W.'],
+        },
+        {
+            'id': '10',
+            'name': 'API Development',
+            'priority': 'high',
+            'status': 'in-progress',
+            'startDate': '2024-02-01',
+            'endDate': '2024-05-01',
+            'progress': '50',
+            'assignees': ['Alex M.', 'Nina P.'],
+        },
+        {
+            'id': '11',
+            'name': 'User Training Program',
+            'priority': 'low',
+            'status': 'not-started',
+            'startDate': '2024-06-01',
+            'endDate': '2024-07-15',
+            'progress': '0',
+            'assignees': ['Oliver R.', 'Kate S.'],
+        },
+        {
+            'id': '12',
+            'name': 'Hardware Upgrade',
+            'priority': 'medium',
+            'status': 'completed',
+            'startDate': '2024-02-01',
+            'endDate': '2024-03-01',
+            'progress': '100',
+            'assignees': ['William T.', 'Helen M.'],
+        },
+        {
+            'id': '13',
+            'name': 'DevOps Implementation',
+            'priority': 'high',
+            'status': 'in-progress',
+            'startDate': '2024-03-15',
+            'endDate': '2024-06-15',
+            'progress': '35',
+            'assignees': ['George P.', 'Julia K.'],
+        },
+        {
+            'id': '14',
+            'name': 'Quality Assurance',
+            'priority': 'medium',
+            'status': 'not-started',
+            'startDate': '2024-04-15',
+            'endDate': '2024-05-15',
+            'progress': '0',
+            'assignees': ['Daniel F.', 'Mary B.'],
+        },
+        {
+            'id': '15',
+            'name': 'Network Infrastructure',
+            'priority': 'high',
+            'status': 'in-progress',
+            'startDate': '2024-03-01',
+            'endDate': '2024-08-01',
+            'progress': '15',
+            'assignees': ['Steve C.', 'Laura H.'],
         }
     ]
+    
+    # Randomly select 3 projects
+    return random.sample(projects, 3)
     
     
 MOCK_DATA = {
