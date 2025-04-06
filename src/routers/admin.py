@@ -58,6 +58,7 @@ async def get_overall_dashboard(current_user: dict = Depends(get_current_user)):
         
 def process_activity_data(activity_data):
     """Process and analyze communication activity data"""
+    
     if not activity_data:
         return {}
 
@@ -364,7 +365,7 @@ async def get_employee_summary(employee_id: str, current_user: dict = Depends(ge
                 "name": user_data.get("name"),
                 "email": user_data.get("email"),
                 "employee_id": employee_id,
-                "joining_date": convert_to_ist(employee_data.get("Joining_Date")).isoformat() if employee_data.get("Joining_Date") else None
+                "joining_date": convert_to_ist(employee_data.get("Joining_Date")).isoformat() if employee_data and employee_data.get("Joining_Date") else None
             },
             "current_state": current_state,
             "vibe_trend": vibe_trend,
@@ -372,9 +373,9 @@ async def get_employee_summary(employee_id: str, current_user: dict = Depends(ge
             "chat_analysis": chat_analysis,
             "performance": performance_info,  # Added performance data
             "onboarding_experience": {
-                "feedback": employee_data.get("Onboarding_Feedback"),
-                "mentor_assigned": employee_data.get("Mentor_Assigned", False),
-                "training_completed": employee_data.get("Initial_Training_Completed", False)
+                "feedback": employee_data.get("Onboarding_Feedback") if employee_data else None,
+                "mentor_assigned": employee_data.get("Mentor_Assigned", False) if employee_data else None,
+                "training_completed": employee_data.get("Initial_Training_Completed", False) if employee_data else None,
             },
             "communication_activity": activity_analysis,
             "leave_analysis": leave_analysis,
