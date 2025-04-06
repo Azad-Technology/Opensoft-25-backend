@@ -58,7 +58,7 @@ async def get_chat_history(session_id: str) -> List:
         logger.error(f"[Session: {session_id}] Error retrieving chat history: {str(e)}")
         return []
 
-async def save_to_chat_history(employee_id: str, session_id: str, role: str, message: str) -> bool:
+async def save_to_chat_history(employee_id: str, session_id: str, role: str, message: str, chat_name: str = "Employee") -> bool:
     logger.info(f"[Session: {session_id}] Saving message to chat history - Role: {role}")
     try:
         document = {
@@ -66,7 +66,8 @@ async def save_to_chat_history(employee_id: str, session_id: str, role: str, mes
             "employee_id": employee_id,
             "role": role,
             "message": message,
-            "timestamp": datetime.now(timezone.utc)
+            "timestamp": datetime.now(timezone.utc),
+            "chat_name": chat_name
         }
         await async_db.chat_history.insert_one(document)
         logger.info(f"[Session: {session_id}] Successfully saved message to chat history")
@@ -369,7 +370,7 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
                 logger.error(f"[Session: {session_id}] Failed to generate initial question")
                 return {"error": "Failed to generate question", "conversation_status": "error"}
             
-            await save_to_chat_history(employee_id, session_id, "assistant", question)
+            await save_to_chat_history(employee_id, session_id, "assistant", question, intent_data.get("chat_name", "New Chat"))
             return {"response": question, "conversation_status": "ongoing", "intent_data": intent_data}
         
         # Existing conversation
@@ -419,7 +420,7 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
         
         # Save user message if conversation is ongoing
         if message is not None:
-            await save_to_chat_history(employee_id, session_id, "user", message)
+            await save_to_chat_history(employee_id, session_id, "user", message, intent_data.get("chat_name", "New Chat"))
             # Update chat_history after saving new message
             chat_history = await get_chat_history(session_id)
         
@@ -468,7 +469,7 @@ async def chat_complete(employee_id: str, session_id: str = None, message: str =
             return {"error": "Failed to generate question", "conversation_status": "error", "intent_data": intent_data}
 
         # Save question and updated intent data
-        await save_to_chat_history(employee_id, session_id, "assistant", next_question)
+        await save_to_chat_history(employee_id, session_id, "assistant", next_question, intent_data.get("chat_name", "New Chat"))
         await save_intent_data(employee_id, session_id, intent_data)
 
         logger.info(f"[Session: {session_id}] Successfully completed chat iteration")

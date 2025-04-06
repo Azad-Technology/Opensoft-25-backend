@@ -120,7 +120,8 @@ async def list_chat_sessions(
                 "$group": {
                     "_id": "$session_id",
                     "last_message": {"$first": "$message"},
-                    "timestamp": {"$first": "$timestamp"}
+                    "timestamp": {"$first": "$timestamp"},
+                    "chat_name": {"$first": "$chat_name"} 
                 }
             },
             {
@@ -128,7 +129,8 @@ async def list_chat_sessions(
                     "_id": 0,
                     "session_id": "$_id",
                     "last_message": 1,
-                    "timestamp": 1
+                    "timestamp": 1,
+                    "chat_name": 1
                 }
             }
         ]).to_list(length=None)
