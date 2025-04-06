@@ -1,7 +1,6 @@
-import os
 import re
 from math import nan
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import pandas as pd
 import numpy as np
 from pymongo import UpdateOne
@@ -17,6 +16,7 @@ from utils.config import get_async_database
 
 async_db = get_async_database()
 logger = setup_logger("src/analysis/data_analyze_pipeline.py")
+
 
 async def load_collection_to_dataframe(collection_name):
     collection = async_db[collection_name]
@@ -233,10 +233,9 @@ def leave_data(leave_df):
 
 
 def onboard_data(onboard_df):
+    onboard_df.to_csv("1_onboard.csv", index=0)
     onboard = onboard_df.rename(columns={"Joining_Date": "Date"})
-    onboard["Date"] = pd.to_datetime(onboard["Date"], format="%Y-%m-%d").dt.strftime(
-        "%Y-%m-%d"
-    )
+    onboard["Date"] = pd.to_datetime(onboard["Date"]).dt.strftime("%Y-%m-%d")
     onboard["company_efforts"] = (
         onboard["Mentor_Assigned"] & onboard["Initial_Training_Completed"]
     ).astype(int)
@@ -262,28 +261,41 @@ def onboard_data(onboard_df):
         sorted_df = df.sort_values("Date").reset_index(drop=True)
         grouped = sorted_df.groupby("Employee_ID")
         max_entries = sorted_df.groupby("Employee_ID").size().max()
-        result = (
-            grouped.apply(
-                lambda x: pd.Series(
-                    {
-                        **{
-                            f"Onboard_Category_{i + 1}": x.iloc[i]["onboard_category"]
-                            for i in range(len(x))
-                        },
-                        **{
-                            f"Onboard_Date_{i + 1}": x.iloc[i]["Date"]
-                            for i in range(len(x))
-                        },
-                    }
-                )
+        if max_entries == 1:
+            result = sorted_df[["Employee_ID", "onboard_category", "Date"]].copy()
+            result.rename(
+                columns={
+                    "onboard_category": "Onboard_Category_1",
+                    "Date": "Onboard_Date_1",
+                },
+                inplace=True,
             )
-            .unstack()
-            .reset_index()
-        )
-        columns = ["Employee_ID"]
-        for i in range(1, max_entries + 1):
-            columns.extend([f"Onboard_Date_{i}", f"Onboard_Category_{i}"])
-        return result.reindex(columns=columns, fill_value=None)
+            return result
+        else:
+            result = (
+                grouped.apply(
+                    lambda x: pd.Series(
+                        {
+                            **{
+                                f"Onboard_Category_{i + 1}": x.iloc[i][
+                                    "onboard_category"
+                                ]
+                                for i in range(len(x))
+                            },
+                            **{
+                                f"Onboard_Date_{i + 1}": x.iloc[i]["Date"]
+                                for i in range(len(x))
+                            },
+                        }
+                    )
+                )
+                .unstack()
+                .reset_index()
+            )
+            columns = ["Employee_ID"]
+            for i in range(1, max_entries + 1):
+                columns.extend([f"Onboard_Date_{i}", f"Onboard_Category_{i}"])
+            return result.reindex(columns=columns, fill_value=None)
 
     unique_ids = set()
     unique_ids.update(onboard["Employee_ID"].unique())
@@ -305,7 +317,6 @@ def onboard_data(onboard_df):
 
 
 def performance_data(performance_df):
-    performance = performance_df.copy()
     weights = {
         "performance_rating": 0.60,
         "manager_feedback": 0.30,
@@ -337,40 +348,47 @@ def performance_data(performance_df):
             + (promotion_score * weights["promotion_consideration"])
         )
 
-    performance["Per_Score"] = performance.apply(calculate_master_score, axis=1)
-    performance["Per_Score"] = performance["Per_Score"].round(3)
-    performance["Review_Period"] = performance["Review_Period"].apply(
+    performance_df["Per_Score"] = performance_df.apply(calculate_master_score, axis=1)
+    performance_df["Per_Score"] = performance_df["Per_Score"].round(3)
+    performance_df["Review_Period"] = performance_df["Review_Period"].apply(
         lambda x: convert_performance_date(x, fiscal_year_end_month=12)
     )
-    performance = performance.rename(columns={"Review_Period": "Date"})
+    performance = performance_df.rename(columns={"Review_Period": "Date"})
     median = performance["Per_Score"].median()
 
     def process_performance(df):
         sorted_df = df.sort_values("Date").reset_index(drop=True)
         grouped = sorted_df.groupby("Employee_ID")
         max_entries = sorted_df.groupby("Employee_ID").size().max()
-        result = (
-            grouped.apply(
-                lambda x: pd.Series(
-                    {
-                        **{
-                            f"Per_Score_{i + 1}": x.iloc[i]["Per_Score"]
-                            for i in range(len(x))
-                        },
-                        **{
-                            f"Per_Date_{i + 1}": x.iloc[i]["Date"]
-                            for i in range(len(x))
-                        },
-                    }
-                )
+        if max_entries == 1:
+            result = sorted_df[["Employee_ID", "Per_Score", "Date"]].copy()
+            result.rename(
+                columns={"Per_Score": "Per_Score_1", "Date": "Per_Date_1"}, inplace=True
             )
-            .unstack()
-            .reset_index()
-        )
-        columns = ["Employee_ID"]
-        for i in range(1, max_entries + 1):
-            columns.extend([f"Per_Date_{i}", f"Per_Score_{i}"])
-        return result.reindex(columns=columns, fill_value=None)
+            return result
+        else:
+            result = (
+                grouped.apply(
+                    lambda x: pd.Series(
+                        {
+                            **{
+                                f"Per_Score_{i + 1}": x.iloc[i]["Per_Score"]
+                                for i in range(len(x))
+                            },
+                            **{
+                                f"Per_Date_{i + 1}": x.iloc[i]["Date"]
+                                for i in range(len(x))
+                            },
+                        }
+                    )
+                )
+                .unstack()
+                .reset_index()
+            )
+            columns = ["Employee_ID"]
+            for i in range(1, max_entries + 1):
+                columns.extend([f"Per_Date_{i}", f"Per_Score_{i}"])
+            return result.reindex(columns=columns, fill_value=None)
 
     unique_ids = set()
     unique_ids.update(performance["Employee_ID"].unique())
@@ -684,158 +702,158 @@ def predict_emotions(imputed_dataset):
 
     return train_results
 
+
 async def save_to_mongodb(final_dataset):
     try:
         # Get current time in UTC and convert to IST
         current_utc = datetime.now(timezone.utc)
-        ist_tz = pytz.timezone('Asia/Kolkata')
+        ist_tz = pytz.timezone("Asia/Kolkata")
         current_ist = current_utc.astimezone(ist_tz)
         current_ist_date = current_ist.date().isoformat()
-        
+
         # Prepare bulk operations
         bulk_operations = []
-        
+
         for _, row in final_dataset.iterrows():
             data = row.to_dict()
-            data['timestamp'] = current_utc  # Store in UTC
-            data['ist_date'] = current_ist_date  # Store IST date
-            
+            data["timestamp"] = current_utc  # Store in UTC
+            data["ist_date"] = current_ist_date  # Store IST date
+
             # Update operation for each employee - will update if exists, create if doesn't
             bulk_operations.append(
                 UpdateOne(
-                    {
-                        'Employee_ID': data['Employee_ID'],
-                        'ist_date': current_ist_date
-                    },
-                    {'$set': data},
-                    upsert=True
+                    {"Employee_ID": data["Employee_ID"], "ist_date": current_ist_date},
+                    {"$set": data},
+                    upsert=True,
                 )
             )
         result = None
         if bulk_operations:
             result = await async_db.analyzed_profile.bulk_write(bulk_operations)
-            print(f"Data saved to MongoDB at {current_ist.strftime('%Y-%m-%d %I:%M %p IST')}")
-            print(f"Modified: {result.modified_count}, Upserted: {result.upserted_count}")
-            
+            print(
+                f"Data saved to MongoDB at {current_ist.strftime('%Y-%m-%d %I:%M %p IST')}"
+            )
+            print(
+                f"Modified: {result.modified_count}, Upserted: {result.upserted_count}"
+            )
+
         return result
     except Exception as e:
         logger.error(f"Error saving to MongoDB: {str(e)}", exc_info=True)
         return None
-        
+
+
 async def get_employee_profile_json(employee_id: str) -> dict:
     """Create a JSON format profile for a single employee with limited recent data"""
     logger.info(f"Creating JSON profile for employee: {employee_id}")
-    
+
     try:
-        
         # Get all performance records and sort them manually
         all_performance = await async_db.performance.find(
-            {"Employee_ID": employee_id},
-            {"_id": 0}
+            {"Employee_ID": employee_id}, {"_id": 0}
         ).to_list(length=None)
-        
+
         # Custom sorting function for performance periods
         def sort_performance(record):
             period = record["Review_Period"]
             year = int(period.split()[-1])
             half = 1 if "H1" in period else 2
             return (year, half)
-        
+
         # Sort and get last 3 entries
         sorted_performance = sorted(
-            all_performance,
-            key=sort_performance,
-            reverse=True
+            all_performance, key=sort_performance, reverse=True
         )[:3]
-        
+
         collections_data = {
             "employee_id": employee_id,
             "onboarding": await async_db.onboarding.find_one(
-                {"Employee_ID": employee_id},
-                {"_id": 0}
+                {"Employee_ID": employee_id}, {"_id": 0}
             ),
             "vibemeter": await async_db.vibemeter.find(
-                {"Employee_ID": employee_id},
-                {"_id": 0}
-            ).sort([("Response_Date", -1)]).limit(3).to_list(length=None),
-            
-            "performance": sorted_performance,  # Use manually sorted performance data
-            
-            "rewards": await async_db.rewards.find(
-                {"Employee_ID": employee_id},
-                {"_id": 0}
-            ).sort([("Award_Date", -1)]).limit(3).to_list(length=None),
-            
-            "leave": await async_db.leave.find(
-                {"Employee_ID": employee_id},
-                {"_id": 0}
-            ).sort([("Leave_Start_Date", -1)]).limit(3).to_list(length=None),
-            
-            "activity": await async_db.activity.find(
-                {"Employee_ID": employee_id},
-                {"_id": 0}
-            ).sort([("Date", -1)]).limit(3).to_list(length=None),
-            
-            "analyzed_profile": await async_db.analyzed_profile.find_one(
-                {"Employee_ID": employee_id},
-                {"_id": 0},
-                sort=[("timestamp", -1)]
+                {"Employee_ID": employee_id}, {"_id": 0}
             )
+            .sort([("Response_Date", -1)])
+            .limit(3)
+            .to_list(length=None),
+            "performance": sorted_performance,  # Use manually sorted performance data
+            "rewards": await async_db.rewards.find(
+                {"Employee_ID": employee_id}, {"_id": 0}
+            )
+            .sort([("Award_Date", -1)])
+            .limit(3)
+            .to_list(length=None),
+            "leave": await async_db.leave.find({"Employee_ID": employee_id}, {"_id": 0})
+            .sort([("Leave_Start_Date", -1)])
+            .limit(3)
+            .to_list(length=None),
+            "activity": await async_db.activity.find(
+                {"Employee_ID": employee_id}, {"_id": 0}
+            )
+            .sort([("Date", -1)])
+            .limit(3)
+            .to_list(length=None),
+            "analyzed_profile": await async_db.analyzed_profile.find_one(
+                {"Employee_ID": employee_id}, {"_id": 0}, sort=[("timestamp", -1)]
+            ),
         }
-        
+
         logger.debug(f"Calculating summary metrics for: {employee_id}")
-        
+
         # Calculate summary metrics
         # summary = {}
-        
+
         # if collections_data["vibemeter"]:
         #     summary["average_vibe_score"] = sum(v["Vibe_Score"] for v in collections_data["vibemeter"]) / len(collections_data["vibemeter"])
         #     summary["latest_vibe_score"] = collections_data["vibemeter"][0]["Vibe_Score"]
         #     summary["latest_vibe_date"] = collections_data["vibemeter"][0]["Response_Date"]
-        
+
         # if collections_data["rewards"]:
         #     summary["recent_rewards"] = sum(r["Reward_Points"] for r in collections_data["rewards"])
         #     summary["latest_reward"] = {
         #         "type": collections_data["rewards"][0]["Award_Type"],
         #         "date": collections_data["rewards"][0]["Award_Date"]
         #     }
-        
+
         # if collections_data["performance"]:
         #     summary["latest_performance"] = {
         #         "rating": collections_data["performance"][0]["Performance_Rating"],
         #         "feedback": collections_data["performance"][0]["Manager_Feedback"],
         #         "period": collections_data["performance"][0]["Review_Period"]
         #     }
-        
+
         # if collections_data["leave"]:
         #     summary["recent_leave_days"] = sum(l["Leave_Days"] for l in collections_data["leave"])
         #     summary["latest_leave"] = {
         #         "days": collections_data["leave"][0]["Leave_Days"],
         #         "start_date": collections_data["leave"][0]["Leave_Start_Date"]
         #     }
-        
+
         # if collections_data["activity"]:
         #     summary["recent_avg_work_hours"] = sum(a.get("Work_Hours", 0) for a in collections_data["activity"]) / len(collections_data["activity"])
         #     summary["latest_activity"] = {
         #         "work_hours": collections_data["activity"][0]["Work_Hours"],
         #         "date": collections_data["activity"][0]["Date"]
         #     }
-        
+
         # if collections_data["onboarding"]:
         #     summary["onboarding_status"] = {
         #         "mentor_assigned": collections_data["onboarding"]["Mentor_Assigned"],
         #         "training_completed": collections_data["onboarding"]["Initial_Training_Completed"],
         #         "feedback": collections_data["onboarding"]["Onboarding_Feedback"]
         #     }
-        
+
         # collections_data["summary"] = summary
-        
+
         logger.info(f"Successfully created JSON profile for: {employee_id}")
         return collections_data
 
     except Exception as e:
-        logger.error(f"Error creating JSON profile for {employee_id}: {str(e)}", exc_info=True)
+        logger.error(
+            f"Error creating JSON profile for {employee_id}: {str(e)}", exc_info=True
+        )
         return {}
+
 
 async def analyzed_profile():
     try:
@@ -845,25 +863,31 @@ async def analyzed_profile():
         performance_df = await load_collection_to_dataframe("performance")
         rewards_df = await load_collection_to_dataframe("rewards")
         vibemeter_df = await load_collection_to_dataframe("vibemeter")
-        
+
         activity = activity_data(activity_df)
         leave = leave_data(leave_df)
         onboard = onboard_data(onboard_df)
         performance = performance_data(performance_df)
         rewards = rewards_data(rewards_df)
-        vibemeter = vibemeter_data(vibemeter_df, activity, leave, onboard, performance, rewards)
+        vibemeter = vibemeter_data(
+            vibemeter_df, activity, leave, onboard, performance, rewards
+        )
 
-        negative, positive, empty_emotions = divide_emotions(vibemeter, activity, leave, onboard, performance, rewards)
+        negative, positive, empty_emotions = divide_emotions(
+            vibemeter, activity, leave, onboard, performance, rewards
+        )
         imputed_dataset = impute_data(negative, positive, empty_emotions)
         final_dataset = predict_emotions(imputed_dataset)
-        
+
         result = await save_to_mongodb(final_dataset)
         return result
-        
+
     except Exception as e:
         logger.error(f"Error in analyzed_profile: {str(e)}", exc_info=True)
         raise
 
+
 if __name__ == "__main__":
     import asyncio
+
     print(asyncio.run(analyzed_profile()))
