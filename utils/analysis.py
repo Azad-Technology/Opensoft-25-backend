@@ -69,6 +69,20 @@ def get_project_details():
             'assignees': ['Robert K.', 'Lisa M.'],
         }
     ]
+
+def convert_to_ist(utc_dt):
+    """Helper function to convert UTC datetime to IST"""
+    try:
+        if not utc_dt:
+            return None
+        # Ensure datetime is UTC
+        if not utc_dt.tzinfo:
+            utc_dt = utc_dt.replace(tzinfo=timezone.utc)
+        ist_tz = pytz.timezone('Asia/Kolkata')
+        return utc_dt.astimezone(ist_tz)
+    except Exception as e:
+        print(f"Error converting to IST: {e}")
+        return None
     
     
 MOCK_DATA = {
