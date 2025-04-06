@@ -1,12 +1,11 @@
 import random 
-import math
 import json
 from datetime import datetime, timedelta
 import os
 
 behavior_patterns = {
     "Work_Overload_Stress": {
-        "work_hours": (10, 12),
+        "work_hours": (9, 10),
         "messages": (60, 90),
         "emails": (15, 30),
         "meetings": (4, 6),
@@ -46,7 +45,7 @@ behavior_patterns = {
         "award_percentage": 0.02
     },
     "Lack_of_Work_Life_Balance": {
-        "work_hours": (10, 14),
+        "work_hours": (8, 10),
         "messages": (30, 70),
         "emails": (8, 20),
         "meetings": (3, 5),
@@ -76,7 +75,7 @@ behavior_patterns = {
         "award_percentage": 0.05
     },
     "High_Performance_Contributor": {
-        "work_hours": (9, 11),
+        "work_hours": (9, 10),
         "messages": (80, 120),
         "emails": (25, 45),
         "meetings": (6, 8),
@@ -163,45 +162,71 @@ def distribute_behavior_days(total_days, behaviors):
     weights.append(1 - sum(weights))
     return {behaviors[i]: int(total_days * weights[i]) for i in range(len(behaviors))}
 
-def generate_activity_data(joining_date,behaviour_pattern, days):
+def generate_activity_data(joining_date, behaviour_pattern, days):
     activity_data = []
     keys_list = list(behaviour_pattern.keys())
-    for i in range(len(behaviour_pattern)):
-        behavior = keys_list[i]
+    
+    # Generate one entry per day
+    for day in range(days):
+        date = joining_date + timedelta(days=day)
+        
+        # Randomly select one behavior for this day
+        behavior = random.choice(keys_list)
         behavior_info = behavior_patterns[behavior]
-        for day in range(days):
-            date = joining_date + timedelta(days=day)
-            work_hours = random.randint(behavior_info["work_hours"][0], behavior_info["work_hours"][1])
-            messages = random.randint(behavior_info["messages"][0], behavior_info["messages"][1])
-            emails = random.randint(behavior_info["emails"][0], behavior_info["emails"][1])
-            meetings = random.randint(behavior_info["meetings"][0], behavior_info["meetings"][1])
-            activity_data.append({
-                "Date": date.strftime("%m/%d/%Y"),
-                "Work_Hours": work_hours,
-                "Messages": messages,
-                "Emails": emails,
-                "Meetings": meetings,
-            })
+        
+        work_hours = random.randint(behavior_info["work_hours"][0], behavior_info["work_hours"][1])
+        messages = random.randint(behavior_info["messages"][0], behavior_info["messages"][1])
+        emails = random.randint(behavior_info["emails"][0], behavior_info["emails"][1])
+        meetings = random.randint(behavior_info["meetings"][0], behavior_info["meetings"][1])
+        
+        activity_data.append({
+            "Date": date.strftime("%m/%d/%Y"),
+            "Work_Hours": work_hours,
+            "Messages": messages,
+            "Emails": emails,
+            "Meetings": meetings,
+        })
+    
     return activity_data
 
 def generate_leave_data(employee_id, joining_date, behavior_distribution):
     leave_data = []
+    total_days = (datetime.now() - joining_date).days
+    
+    # Calculate the start date for leaves (either joining date or 6 months ago, whichever is more recent)
+    two_year_ago = datetime.now() - timedelta(days=180)
+    leave_start_boundary = max(joining_date, two_year_ago)
+    available_days = (datetime.now() - leave_start_boundary).days
+    
     for behavior, days in behavior_distribution.items():
         behavior_info = behavior_patterns[behavior]
-        leave_days = int(days * behavior_info["leave_percentage"])
+        # Adjust leave days calculation to be proportional to the available days
+        leave_days = int((available_days/total_days) * days * behavior_info["leave_percentage"])
+        
         for _ in range(leave_days):
             leave_type = random.choices(
                 list(behavior_info["leave_probabilities"].keys()),
                 list(behavior_info["leave_probabilities"].values())
             )[0]
-            leave_start = joining_date + timedelta(days=random.randint(0, days - 1))
-            leave_end = leave_start + timedelta(days=random.randint(1, 3))
+            
+            # Generate leave dates within the more recent timeframe
+            leave_start = leave_start_boundary + timedelta(days=random.randint(0, available_days - 1))
+            leave_duration = random.randint(1, 3)
+            leave_end = leave_start + timedelta(days=leave_duration)
+            
+            # Ensure leave end date doesn't exceed current date
+            if leave_end > datetime.now():
+                continue
+                
             leave_data.append({
                 "Leave_Type": leave_type,
-                "Leave_Days": (leave_end - leave_start).days + 1,
+                "Leave_Days": leave_duration,
                 "Leave_Start_Date": leave_start.strftime("%m/%d/%Y"),
                 "Leave_End_Date": leave_end.strftime("%m/%d/%Y"),
             })
+    
+    # Sort leaves by start date
+    leave_data.sort(key=lambda x: datetime.strptime(x["Leave_Start_Date"], "%m/%d/%Y"))
     return leave_data
 
 def generate_performance_data(employee_id, joining_date, behavior_distribution):
@@ -264,14 +289,18 @@ def calculate_vibe_scores(joining_date, behavior_distribution):
         "Job_Satisfaction_Champion": (4, 5),
     }
     
+    # Calculate score for each day
     current_date = joining_date
-    for behavior, days in behavior_distribution.items():
+    behaviors = list(behavior_distribution.keys())  # Get list of behaviors for this employee
+    
+    for day in range(total_days):
+        # Randomly select a behavior for this day
+        behavior = random.choice(behaviors)
         min_score, max_score = behavior_scores.get(behavior, (2, 3))
-        for _ in range(days):
-            # Using randint instead of uniform for integer values
-            vibe_score = random.randint(min_score, max_score)
-            vibe_scores[current_date.strftime('%Y-%m-%d')] = vibe_score
-            current_date += timedelta(days=1)
+        vibe_score = random.randint(min_score, max_score)
+        
+        vibe_scores[current_date.strftime('%Y-%m-%d')] = vibe_score
+        current_date += timedelta(days=1)
     
     return vibe_scores
 
@@ -280,39 +309,90 @@ def generate_dummy_data(num_entries=20):
     
     # Define different behavior combinations for different employee types
     employee_types = [
-        # High performers
+        # Original High Performers
         ["Highly_Engaged_Employee", "High_Performance_Contributor", "Strong_Team_Collaborator"],
         ["High_Performance_Contributor", "Innovative_Problem_Solver", "Job_Satisfaction_Champion"],
         ["Innovative_Problem_Solver", "Strong_Team_Collaborator", "Highly_Engaged_Employee"],
         
-        # Mixed performance
+        # Additional High Performers
+        ["High_Performance_Contributor", "Job_Satisfaction_Champion", "Strong_Team_Collaborator"],
+        ["Highly_Engaged_Employee", "Innovative_Problem_Solver", "Strong_Team_Collaborator"],
+        ["Job_Satisfaction_Champion", "High_Performance_Contributor", "Innovative_Problem_Solver"],
+        
+        # Original Mixed Performance
         ["Highly_Engaged_Employee", "Career_Concerns", "Strong_Team_Collaborator"],
         ["High_Performance_Contributor", "Work_Overload_Stress", "Strong_Team_Collaborator"],
         ["Innovative_Problem_Solver", "Lack_of_Work_Life_Balance", "Job_Satisfaction_Champion"],
         
-        # Struggling employees
+        # Additional Mixed Performance
+        ["Strong_Team_Collaborator", "Recognition_Gap", "High_Performance_Contributor"],
+        ["Innovative_Problem_Solver", "Feeling_Undervalued", "Highly_Engaged_Employee"],
+        ["Job_Satisfaction_Champion", "Career_Concerns", "High_Performance_Contributor"],
+        
+        # Original Struggling Employees
         ["Work_Overload_Stress", "Lack_of_Work_Life_Balance", "Career_Concerns"],
         ["Lack_of_Engagement", "Feeling_Undervalued", "Recognition_Gap"],
         ["Career_Concerns", "Recognition_Gap", "Feeling_Undervalued"],
         
-        # Growth potential
+        # Additional Struggling Employees
+        ["Lack_of_Engagement", "Work_Overload_Stress", "Recognition_Gap"],
+        ["Feeling_Undervalued", "Lack_of_Work_Life_Balance", "Career_Concerns"],
+        ["Recognition_Gap", "Work_Overload_Stress", "Lack_of_Engagement"],
+        
+        # Original Growth Potential
         ["Career_Concerns", "Strong_Team_Collaborator", "Innovative_Problem_Solver"],
         ["Feeling_Undervalued", "High_Performance_Contributor", "Recognition_Gap"],
         ["Work_Overload_Stress", "Highly_Engaged_Employee", "Lack_of_Work_Life_Balance"],
         
-        # New joiners
+        # Additional Growth Potential
+        ["Recognition_Gap", "Highly_Engaged_Employee", "Strong_Team_Collaborator"],
+        ["Career_Concerns", "High_Performance_Contributor", "Job_Satisfaction_Champion"],
+        ["Feeling_Undervalued", "Innovative_Problem_Solver", "Strong_Team_Collaborator"],
+        
+        # Original New Joiners
         ["Highly_Engaged_Employee", "Job_Satisfaction_Champion", "Career_Concerns"],
         ["Strong_Team_Collaborator", "Innovative_Problem_Solver", "Work_Overload_Stress"],
         
-        # Senior employees
+        # Additional New Joiners
+        ["High_Performance_Contributor", "Career_Concerns", "Strong_Team_Collaborator"],
+        ["Innovative_Problem_Solver", "Recognition_Gap", "Highly_Engaged_Employee"],
+        ["Job_Satisfaction_Champion", "Work_Overload_Stress", "Strong_Team_Collaborator"],
+        
+        # Original Senior Employees
         ["High_Performance_Contributor", "Work_Overload_Stress", "Job_Satisfaction_Champion"],
         ["Highly_Engaged_Employee", "Strong_Team_Collaborator", "Lack_of_Work_Life_Balance"],
         
-        # Mixed scenarios
+        # Additional Senior Employees
+        ["Strong_Team_Collaborator", "High_Performance_Contributor", "Work_Overload_Stress"],
+        ["Innovative_Problem_Solver", "Job_Satisfaction_Champion", "Recognition_Gap"],
+        ["Highly_Engaged_Employee", "Work_Overload_Stress", "Strong_Team_Collaborator"],
+        
+        # Original Mixed Scenarios
         ["Recognition_Gap", "Innovative_Problem_Solver", "Strong_Team_Collaborator"],
         ["Lack_of_Work_Life_Balance", "High_Performance_Contributor", "Career_Concerns"],
         ["Feeling_Undervalued", "Highly_Engaged_Employee", "Work_Overload_Stress"],
-        ["Career_Concerns", "Job_Satisfaction_Champion", "Recognition_Gap"]
+        ["Career_Concerns", "Job_Satisfaction_Champion", "Recognition_Gap"],
+        
+        # Additional Mixed Scenarios
+        ["Work_Overload_Stress", "Strong_Team_Collaborator", "High_Performance_Contributor"],
+        ["Recognition_Gap", "Highly_Engaged_Employee", "Lack_of_Work_Life_Balance"],
+        ["Career_Concerns", "Innovative_Problem_Solver", "Feeling_Undervalued"],
+        ["Lack_of_Engagement", "Job_Satisfaction_Champion", "Strong_Team_Collaborator"],
+        
+        # Burnout Risk Scenarios
+        ["Work_Overload_Stress", "High_Performance_Contributor", "Lack_of_Work_Life_Balance"],
+        ["Highly_Engaged_Employee", "Work_Overload_Stress", "Recognition_Gap"],
+        ["Strong_Team_Collaborator", "Work_Overload_Stress", "Career_Concerns"],
+        
+        # Retention Risk Scenarios
+        ["Career_Concerns", "Recognition_Gap", "High_Performance_Contributor"],
+        ["Feeling_Undervalued", "Lack_of_Work_Life_Balance", "Strong_Team_Collaborator"],
+        ["Recognition_Gap", "Work_Overload_Stress", "Highly_Engaged_Employee"],
+        
+        # Leadership Potential
+        ["High_Performance_Contributor", "Strong_Team_Collaborator", "Job_Satisfaction_Champion"],
+        ["Highly_Engaged_Employee", "Innovative_Problem_Solver", "Strong_Team_Collaborator"],
+        ["Strong_Team_Collaborator", "Job_Satisfaction_Champion", "High_Performance_Contributor"]
     ]
 
     # Shuffle the employee types list

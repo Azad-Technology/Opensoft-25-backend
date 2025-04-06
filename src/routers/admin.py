@@ -18,182 +18,20 @@ router = APIRouter()
 async_db = get_async_database()
 logger = setup_logger("src/routers/admin.py")
 
-@router.get("/")
-async def get_root():
-    return {"message": "Welcome to the Admin API"}
-
-# @router.get("/overall_dashboard")
-# async def get_overall_dashboard(current_user: dict = Depends(get_current_user)):
-#     try:
-#         if current_user["role"] != "hr":
-#             raise HTTPException(
-#                 status_code=403,
-#                 detail="Unauthorized to see the dashboard"
-#             )
-        
-#         today = datetime.utcnow().date()
-#         today_start = datetime(today.year, today.month, today.day)
-#         today_end = today_start + timedelta(days=1)
-#         seven_days_ago = today_start - timedelta(days=7)
-     
-#         # Get all collections we need
-#         intent_data, vibemeter_data, users_data = await asyncio.gather(
-#             async_db["intent_data"].find({
-#                 "updated_at": {
-#                     "$gte": today_start,
-#                     "$lt": today_end
-#                 },
-#                 "intent_data.chat_completed": True
-#             }).to_list(length=None),
-#             async_db["vibemeter"].find({
-#                 "Response_Date": {
-#                     "$gte": seven_days_ago,
-#                     "$lte": today_end
-#                 }
-#             }).to_list(length=None),
-#             async_db["users"].find({"role": "employee"}).to_list(length=None)
-#         )
-        
-#         # 1. Calculate overall_risk_score (average risk_level of today's records)
-#         overall_risk_score = 0.0
-#         valid_intents = [
-#             intent for intent in intent_data 
-#             if get_nested(intent, "intent_data", "chat_completed") is True
-#         ]
-        
-#         if valid_intents:
-#             total_risk = sum(
-#                 get_nested(intent, "intent_data", "chat_analysis", "risk_assessment", "risk_level", default=0)
-#                 for intent in valid_intents
-#             )
-#             overall_risk_score = round(total_risk / len(valid_intents), 2)
-        
-#         # 2. Get critical cases (risk_level > 3)
-#         critical_intents = [
-#             intent for intent in intent_data 
-#             if get_nested(intent, "intent_data", "chat_analysis", "risk_assessment", "risk_level", default=0) > 3
-#         ]
-        
-#         critical_cases = []
-#         for intent in critical_intents:
-#             # user = next((u for u in users_data if u.get("employee_id") == intent.get("employee_id")), None)
-#             user = await async_db["users"].find_one({"employee_id": intent.get("employee_id")})
-#             print('user: ', user)
-#             risk_level = get_nested(intent, "intent_data", "chat_analysis", "risk_assessment", "risk_level", default=0)
-            
-#             critical_cases.append({
-#                 "employee_id": intent.get("employee_id", "Unknown"),
-#                 "name": user.get("name", "Unknown") if user else "Unknown",
-#                 "email": user.get("email", "Unknown") if user else "Unknown",
-#                 "risk_level": risk_level,
-#             })
-        
-#         # 3. Get total employees
-#         total_employees = len(users_data)
-        
-#         # 4. Get overall mood and mood distribution
-#         latest_vibes = {}
-#         for vibe in sorted(vibemeter_data, key=lambda x: (x.get("Employee_ID", ""), x.get("Response_Date", "")), reverse=True):
-#             if "Employee_ID" in vibe and vibe["Employee_ID"] not in latest_vibes:
-#                 latest_vibes[vibe["Employee_ID"]] = vibe.get("Vibe_Score", 0)
-        
-#         vibe_scores = list(latest_vibes.values())
-#         overall_mood = round(sum(vibe_scores) / len(vibe_scores), 2) if vibe_scores else 0.0
-        
-#         mood_distribution = {
-#             "excited": sum(1 for v in vibe_scores if v == 5),
-#             "happy": sum(1 for v in vibe_scores if v == 4),
-#             "ok": sum(1 for v in vibe_scores if v == 3),
-#             "sad": sum(1 for v in vibe_scores if v == 2),
-#             "frustrated": sum(1 for v in vibe_scores if v == 1)
-#         }
-        
-#         # 5. Weekly risk trend
-#         weekly_risk_trend: Dict[str, float] = {}
-#         for day in get_last_7_days(today):
-#             day_start = datetime.strptime(day, "%Y-%m-%d")
-#             day_end = day_start + timedelta(days=1)
-            
-#             day_intents = await async_db["intent_data"].find({
-#                 "updated_at": {
-#                     "$gte": day_start,
-#                     "$lt": day_end
-#                 }
-
-#             }).to_list(length=None)
-            
-#             valid_day_intents = [
-#                 intent for intent in day_intents 
-#                 if get_nested(intent, "intent_data", "chat_completed") is True
-#             ]
-            
-#             if valid_day_intents:
-#                 print('day intents:', day)
-#                 day_risk = sum(
-#                     get_nested(intent, "intent_data", "chat_analysis", "risk_assessment", "risk_level", default=0)
-#                     for intent in valid_day_intents
-#                 )
-#                 weekly_risk_trend[day] = round(day_risk / len(valid_day_intents), 2)
-#             else:
-#                 weekly_risk_trend[day] = 0.0
-        
-#         return {
-#             "overall_risk_score": overall_risk_score,
-#             "critical_cases": critical_cases,
-#             "total_employees": total_employees,
-#             "overall_mood": overall_mood,
-#             "mood_distribution": mood_distribution,
-#             "weekly_risk_trend": weekly_risk_trend,
-#             "timestamp": datetime.utcnow().isoformat() + "Z"
-#         }
-    
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         return {
-#             "error": "Could not generate overall dashboard",
-#             "details": str(e),
-#             "timestamp": datetime.utcnow().isoformat() + "Z"
-#         }
-
 @router.get("/overall_dashboard")
 async def get_overall_dashboard(current_user: dict = Depends(get_current_user)):
     try:
-        if current_user["role"] != "hr":
-            raise HTTPException(
-                status_code=403,
-                detail="Unauthorized to see the dashboard"
-            )
+        if current_user["role_type"] != "hr":
+            raise HTTPException(status_code=403, detail="Unauthorized to see the dashboard")
+
+        # Fetch the latest dashboard metrics
+        dashboard_metrics = await async_db["admin_dashboard"].find_one({"_id": "current"})
         
-        today = datetime.utcnow().date()
-        today_start = datetime(today.year, today.month, today.day)
-        today_end = today_start + timedelta(days=1)
-        seven_days_ago = today_start - timedelta(days=7)
-        
-        # Helper function to safely get nested values
-        def get_nested(data, *keys, default=None):
-            for key in keys:
-                try:
-                    data = data[key]
-                except (KeyError, TypeError):
-                    return default
-            return data
-        
-        # Get critical cases first (only users with risk_level > 3)
-        critical_intents = await async_db["intent_data"].find({
-            "updated_at": {"$gte": today_start, "$lt": today_end},
-            "intent_data.chat_completed": True,
-            "intent_data.chat_analysis.risk_assessment.risk_level": {"$gt": 3}
-        }).to_list(length=None)
-        
-        # Get employee IDs of critical cases
-        critical_employee_ids = [intent.get("employee_id") for intent in critical_intents if intent.get("employee_id")]
-        
-        if not critical_employee_ids:
+        if not dashboard_metrics:
             return {
                 "overall_risk_score": 0,
                 "critical_cases": [],
-                "total_employees": await async_db["users"].count_documents({"role": "employee"}),
+                "total_employees": 0,
                 "overall_mood": 0,
                 "mood_distribution": {
                     "excited": 0,
@@ -202,151 +40,21 @@ async def get_overall_dashboard(current_user: dict = Depends(get_current_user)):
                     "sad": 0,
                     "frustrated": 0
                 },
-                "weekly_risk_trend": {},
-                "timestamp": datetime.utcnow().isoformat() + "Z"
+                "weekly_mood_trend": {},
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
+
+        # Remove MongoDB _id
+        dashboard_metrics.pop("_id", None)
         
-        # Get all required data in parallel
-        vibemeter_data, users_data, performance_data = await asyncio.gather(
-            async_db["vibemeter"].find({
-                "Employee_ID": {"$in": critical_employee_ids},
-                "Response_Date": {"$gte": seven_days_ago, "$lte": today_end}
-            }).to_list(length=None),
-            async_db["users"].find({
-                "employee_id": {"$in": critical_employee_ids}
-            }).to_list(length=None),
-            async_db["performance"].find({
-                "Employee_ID": {"$in": critical_employee_ids}
-            }).to_list(length=None)
-        )
-        
-        # Create maps for quick lookup
-        user_map = {user["employee_id"]: user for user in users_data}
-        
-        # Process latest vibe scores
-        latest_vibes = {}
-        for vibe in sorted(vibemeter_data, key=lambda x: (x.get("Employee_ID", ""), x.get("Response_Date", "")), reverse=True):
-            if "Employee_ID" in vibe and vibe["Employee_ID"] not in latest_vibes:
-                latest_vibes[vibe["Employee_ID"]] = {
-                    "score": vibe.get("Vibe_Score", 0),
-                    "date": vibe.get("Response_Date")
-                }
-        
-        # Process latest performance reviews
-        latest_performance = {}
-        for perf in sorted(performance_data, key=lambda x: (x.get("Employee_ID", ""), x.get("Review_Period", "")), reverse=True):
-            if "Employee_ID" in perf and perf["Employee_ID"] not in latest_performance:
-                latest_performance[perf["Employee_ID"]] = {
-                    "rating": perf.get("Performance_Rating"),
-                    "feedback": perf.get("Manager_Feedback"),
-                    "period": perf.get("Review_Period")
-                }
-        
-        # Process critical cases with all requested data
-        critical_cases = []
-        for intent in critical_intents:
-            employee_id = intent.get("employee_id")
-            user = user_map.get(employee_id)
-            if not user:
-                continue
-                
-            vibe_info = latest_vibes.get(employee_id, {})
-            perf_info = latest_performance.get(employee_id, {})
-            
-            # Convert dates to IST if they exist
-            vibe_date_utc = vibe_info.get("date")
-            vibe_date_ist = convert_to_ist(vibe_date_utc) if vibe_date_utc else None
-            
-            critical_cases.append({
-                "employee_id": employee_id,
-                "email": user.get("email", ""),
-                "name": user.get("name", ""),
-                "role": user.get("role", "employee"),
-                "current_vibe": {
-                    "score": vibe_info.get("score", 0),
-                    "last_check_in": vibe_date_ist.isoformat() if vibe_date_ist else None
-                },
-                "performance": {
-                    "rating": perf_info.get("rating"),
-                    "feedback": perf_info.get("feedback"),
-                    "period": perf_info.get("period")
-                },
-                "risk_assessment": get_nested(intent, "intent_data", "chat_analysis", "risk_assessment", "risk_level", default=0),
-            })
-        
-        # Calculate overall metrics
-        total_employees = await async_db["users"].count_documents({"role": "employee"})
-        
-        # Get overall mood from all employees (not just critical cases)
-        all_vibes = await async_db["vibemeter"].find({
-            "Response_Date": {"$gte": seven_days_ago, "$lte": today_end}
-        }).to_list(length=None)
-        
-        latest_all_vibes = {}
-        for vibe in sorted(all_vibes, key=lambda x: (x.get("Employee_ID", ""), x.get("Response_Date", "")), reverse=True):
-            if "Employee_ID" in vibe and vibe["Employee_ID"] not in latest_all_vibes:
-                latest_all_vibes[vibe["Employee_ID"]] = vibe.get("Vibe_Score", 0)
-        
-        vibe_scores = list(latest_all_vibes.values())
-        overall_mood = round(sum(vibe_scores) / len(vibe_scores), 2) if vibe_scores else 0.0
-        
-        mood_distribution = {
-            "excited": sum(1 for v in vibe_scores if v == 5),
-            "happy": sum(1 for v in vibe_scores if v == 4),
-            "ok": sum(1 for v in vibe_scores if v == 3),
-            "sad": sum(1 for v in vibe_scores if v == 2),
-            "frustrated": sum(1 for v in vibe_scores if v == 1)
-        }
-        
-        # Calculate overall risk score
-        overall_risk_score = 0.0
-        if critical_intents:
-            total_risk = sum(
-                get_nested(intent, "intent_data", "chat_analysis", "risk_assessment", "risk_level", default=0)
-                for intent in critical_intents
-            )
-            overall_risk_score = round(total_risk / len(critical_intents), 2)
-        
-        # Weekly risk trend
-        weekly_risk_trend: Dict[str, float] = {}
-        for day_offset in range(6, -1, -1):  # Last 7 days including today
-            day = today - timedelta(days=day_offset)
-            day_start = datetime(day.year, day.month, day.day)
-            day_end = day_start + timedelta(days=1)
-            
-            day_intents = await async_db["intent_data"].find({
-                "updated_at": {"$gte": day_start, "$lt": day_end},
-                "intent_data.chat_completed": True,
-                "intent_data.chat_analysis.risk_assessment.risk_level": {"$gt": 3}
-            }).to_list(length=None)
-            
-            if day_intents:
-                day_risk = sum(
-                    get_nested(intent, "intent_data", "chat_analysis", "risk_assessment", "risk_level", default=0)
-                    for intent in day_intents
-                )
-                weekly_risk_trend[day.isoformat()] = round(day_risk / len(day_intents), 2)
-            else:
-                weekly_risk_trend[day.isoformat()] = 0.0
-        
-        return {
-            "overall_risk_score": overall_risk_score,
-            "critical_cases": critical_cases,
-            "total_employees": total_employees,
-            "overall_mood": overall_mood,
-            "mood_distribution": mood_distribution,
-            "weekly_risk_trend": weekly_risk_trend,
-            "timestamp": datetime.utcnow().isoformat() + "Z"
-        }
-    
-    except HTTPException:
-        raise
+        # Ensure timestamp is in ISO format
+        dashboard_metrics["timestamp"] = dashboard_metrics["timestamp"].isoformat()
+
+        return JSONResponse(content=dashboard_metrics)
+
     except Exception as e:
-        return {
-            "error": "Could not generate overall dashboard",
-            "details": str(e),
-            "timestamp": datetime.utcnow().isoformat() + "Z"
-        }
+        logger.error(f"Error fetching dashboard: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error fetching dashboard metrics")
         
 def process_activity_data(activity_data):
     """Process and analyze communication activity data"""
@@ -361,9 +69,19 @@ def process_activity_data(activity_data):
         "work_hours": 0
     })
     
+    activity_level = []
+    
     # Process data week by week
     for activity in activity_data:
         if "Date" in activity:
+            activity_level.append({
+                    "date": convert_to_ist(activity.get("Date")).isoformat(),
+                    "teamsMessages": activity.get("Teams_Messages_Sent", 0),
+                    "emails": activity.get("Emails_Sent", 0),
+                    "meetings": activity.get("Meetings_Attended", 0),
+                    "work_hours": activity.get("Work_Hours", 0)
+                })
+            
             # Get week number from the date
             week_number = activity["Date"].isocalendar()[1]
             
@@ -409,7 +127,8 @@ def process_activity_data(activity_data):
 
     return {
         "weekly_averages": weekly_averages,
-        "communication_scores": communication_scores
+        "communication_scores": communication_scores,
+        "activity_level": activity_level
     }
 
 def process_leave_data(leave_data, current_ist):
@@ -533,40 +252,6 @@ async def get_employee_summary(employee_id: str, current_user: dict = Depends(ge
             }
         ]
 
-        # Get all required data in parallel
-        employee_data, user_data, vibe_data, latest_intent, activity_data, leave_data, rewards_data, latest_vibe, performance_data = await asyncio.gather(
-            async_db["onboarding"].find_one({"Employee_ID": employee_id}),
-            async_db["users"].find_one({"employee_id": employee_id}),
-            async_db["vibemeter"].find({
-                "Employee_ID": employee_id,
-                "Response_Date": {"$gte": vibe_start_date_utc}
-            }).sort("Response_Date", -1).to_list(length=None),
-            async_db["intent_data"].find_one(
-                {"employee_id": employee_id, "intent_data.chat_completed": True},
-                sort=[("updated_at", -1)]
-            ),
-            async_db["activity"].find({
-                "Employee_ID": employee_id,
-                "Date": {"$gte": activity_start_date_utc}
-            }).sort("Date", -1).to_list(length=None),
-            async_db["leave"].find({
-                "Employee_ID": employee_id,
-                "Leave_Start_Date": {"$gte": one_year_ago_utc}
-            }).sort("Leave_Start_Date", -1).to_list(length=None),
-            async_db["rewards"].find({
-                "Employee_ID": employee_id,
-                "Award_Date": {"$gte": one_year_ago_utc}
-            }).sort("Award_Date", -1).to_list(length=None),
-            async_db["vibemeter"].find_one(
-                {"Employee_ID": employee_id},
-                sort=[("Response_Date", -1)]
-            ),
-            async_db["performance"].aggregate(performance_pipeline).to_list(length=None)
-        )
-
-        if not employee_data and not user_data:
-            raise HTTPException(status_code=404, detail="Employee not found")
-        
         # Get all required data in parallel
         employee_data, user_data, vibe_data, latest_intent, activity_data, leave_data, rewards_data, latest_vibe, performance_data = await asyncio.gather(
             async_db["onboarding"].find_one({"Employee_ID": employee_id}),
@@ -739,6 +424,42 @@ async def get_all_employees(current_user: dict = Depends(get_current_user)):
             }
         ]
         
+        # Get current time and calculate date ranges
+        current_time = datetime.now(timezone.utc)
+        seven_days_ago = current_time - timedelta(days=7)
+
+        # Add pipeline for last 7 days vibe data
+        seven_day_vibe_pipeline = [
+            {
+                '$match': {
+                    'Response_Date': {
+                        '$gte': seven_days_ago,
+                        '$lte': current_time
+                    }
+                }
+            },
+            {
+                '$sort': {
+                    'Employee_ID': 1,
+                    'Response_Date': -1
+                }
+            },
+            {
+                '$group': {
+                    '_id': {
+                        'employee_id': '$Employee_ID',
+                        'date': {
+                            '$dateToString': {
+                                'format': '%Y-%m-%d',
+                                'date': '$Response_Date'
+                            }
+                        }
+                    },
+                    'vibe_score': { '$first': '$Vibe_Score' }
+                }
+            }
+        ]
+        
         performance_pipeline = [
             {
                 '$sort': {
@@ -788,26 +509,44 @@ async def get_all_employees(current_user: dict = Depends(get_current_user)):
         ]
 
         # Get all data in parallel
-        users_data, vibe_data, intent_data, performance_data = await asyncio.gather(
+        users_data, vibe_data, seven_day_vibe_data, intent_data, performance_data = await asyncio.gather(
             async_db["users"].find({"role_type": "employee"}).to_list(length=None),
             async_db["vibemeter"].aggregate(vibe_pipeline).to_list(length=None),
+            async_db["vibemeter"].aggregate(seven_day_vibe_pipeline).to_list(length=None),
             async_db["intent_data"].aggregate(intent_pipeline).to_list(length=None),
             async_db["performance"].aggregate(performance_pipeline).to_list(length=None)
         )
 
         # Create maps with safe defaults
-        vibe_map = {}
-        intent_map = {}
-        performance_map = {}
+        # Process maps as before...
+        vibe_map = {doc['_id']: doc['latest_vibe'] for doc in vibe_data if doc.get('_id') and doc.get('latest_vibe')}
+        intent_map = {doc['_id']: doc['latest_intent'] for doc in intent_data if doc.get('_id') and doc.get('latest_intent')}
+        performance_map = {doc['_id']: doc['latest_performance'] for doc in performance_data if doc.get('_id')}
 
-        # Safely populate maps
-        for doc in vibe_data:
-            if doc.get('_id') and doc.get('latest_vibe'):
-                vibe_map[doc['_id']] = doc['latest_vibe']
+        # Initialize dashboard metrics
+        total_risk_score = 0
+        critical_cases = []
+        total_employees = len(users_data)
+        current_mood_scores = []
+        mood_distribution = {
+            "excited": 0,
+            "happy": 0,
+            "ok": 0,
+            "sad": 0,
+            "frustrated": 0
+        }
 
-        for doc in intent_data:
-            if doc.get('_id') and doc.get('latest_intent'):
-                intent_map[doc['_id']] = doc['latest_intent']
+        # Process daily mood trends
+        daily_mood_trends = defaultdict(list)
+        for vibe in seven_day_vibe_data:
+            date = vibe['_id']['date']
+            daily_mood_trends[date].append(vibe['vibe_score'])
+
+        # Calculate weekly mood trend
+        weekly_mood_trend = {
+            date: round(sum(scores) / len(scores), 2)
+            for date, scores in daily_mood_trends.items()
+        }
 
         # Process each user
         processed_users = []
@@ -840,6 +579,29 @@ async def get_all_employees(current_user: dict = Depends(get_current_user)):
                     intent_date_ist is not None and 
                     vibe_date_ist.date() > intent_date_ist.date()):
                     risk_level = 1
+                    
+                total_risk_score += risk_level
+                if risk_level > 3:
+                    critical_cases.append({
+                        "employee_id": employee_id,
+                        "email": user.get("email", ""),
+                        "name": user.get("name", ""),
+                        "role": user.get("role", "employee"),
+                        "current_vibe": {
+                            "score": vibe_score,
+                            "last_check_in": vibe_date_ist.isoformat() if vibe_date_ist else None
+                        },
+                        "performance": {
+                            "rating": performance_info.get("rating"),
+                            "feedback": performance_info.get("feedback"),
+                            "period": performance_info.get("review_period")
+                        },
+                        "risk_assessment": risk_level
+                    })
+
+                if vibe_score > 0:
+                    current_mood_scores.append(vibe_score)
+                    mood_distribution[get_vibe(vibe_score).lower()] += 1
 
                 processed_users.append({
                     "employee_id": employee_id,
@@ -861,6 +623,24 @@ async def get_all_employees(current_user: dict = Depends(get_current_user)):
             except Exception as e:
                 logger.error(f"Error processing user {user.get('employee_id')}: {str(e)}")
                 continue
+            
+        dashboard_metrics = {
+            "timestamp": current_time,
+            "overall_risk_score": round(total_risk_score / total_employees, 2) if total_employees > 0 else 0,
+            "critical_cases_count": len(critical_cases),
+            "critical_cases": critical_cases,
+            "total_employees": total_employees,
+            "overall_mood": round(sum(current_mood_scores) / len(current_mood_scores), 2) if current_mood_scores else 0,
+            "mood_distribution": mood_distribution,
+            "weekly_mood_trend": weekly_mood_trend
+        }
+
+        # Store dashboard metrics
+        await async_db["admin_dashboard"].update_one(
+            {"_id": "current"},
+            {"$set": dashboard_metrics},
+            upsert=True
+        )
 
         return JSONResponse(content={
             "count": len(processed_users),

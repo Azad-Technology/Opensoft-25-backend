@@ -151,82 +151,135 @@ async def add_employee_to_users(emp_id, hr_user):
 async def save_to_mongodb(dataset, hr_user):
     """Save the generated data to MongoDB collections"""
     
-    # Clear existing collections
-    # collections = ['activity', 'leave', 'onboarding', 'performance', 'rewards', 'vibemeter']
-    # for collection in collections:
-    #     await async_db[collection].delete_many({})
-
     for data in dataset:
-        emp_id = data["Employee_ID"]
-        
-        # Add user to users collection
-        user_data = await add_employee_to_users(emp_id, hr_user)
+        try:
+            emp_id = data["Employee_ID"]
+            print(f"\nProcessing Employee ID: {emp_id}")
+            
+            try:
+                # Add user to users collection
+                user_data = await add_employee_to_users(emp_id, hr_user)
+                print(f"User added to users collection: {user_data}")
+            except Exception as e:
+                print(f"Error adding user to users collection for Employee {emp_id}: {e}")
+                continue  # Skip to next employee
 
-        # Activity data
-        activity_records = []
-        for activity in data["Activity"]:
-            activity_records.append({
-                "Employee_ID": emp_id,
-                "Date": datetime.strptime(activity["Date"], "%m/%d/%Y"),
-                "Teams_Messages_Sent": activity["Messages"],
-                "Emails_Sent": activity["Emails"],
-                "Meetings_Attended": activity["Meetings"],
-                "Work_Hours": activity["Work_Hours"]
-            })
-        await async_db.activity.insert_many(activity_records)
+            try:
+                # Activity data
+                activity_records = []
+                for activity in data["Activity"]:
+                    activity_records.append({
+                        "Employee_ID": emp_id,
+                        "Date": datetime.strptime(activity["Date"], "%m/%d/%Y"),
+                        "Teams_Messages_Sent": activity["Messages"],
+                        "Emails_Sent": activity["Emails"],
+                        "Meetings_Attended": activity["Meetings"],
+                        "Work_Hours": activity["Work_Hours"]
+                    })
+                if activity_records:
+                    print(f"Inserting {len(activity_records)} activity records")
+                    await async_db.activity.insert_many(activity_records)
+                else:
+                    print("No activity records to insert")
+            except Exception as e:
+                print(f"Error processing activity data for Employee {emp_id}: {e}")
 
-        # Leave data
-        leave_records = []
-        for leave in data["Leaves"]:
-            leave_records.append({
-                "Employee_ID": emp_id,
-                "Leave_Type": leave["Leave_Type"],
-                "Leave_Days": leave["Leave_Days"],
-                "Leave_Start_Date": datetime.strptime(leave["Leave_Start_Date"], "%m/%d/%Y"),
-                "Leave_End_Date": datetime.strptime(leave["Leave_End_Date"], "%m/%d/%Y")
-            })
-        await async_db.leave.insert_many(leave_records)
+            try:
+                # Leave data
+                leave_records = []
+                for leave in data["Leaves"]:
+                    leave_records.append({
+                        "Employee_ID": emp_id,
+                        "Leave_Type": leave["Leave_Type"],
+                        "Leave_Days": leave["Leave_Days"],
+                        "Leave_Start_Date": datetime.strptime(leave["Leave_Start_Date"], "%m/%d/%Y"),
+                        "Leave_End_Date": datetime.strptime(leave["Leave_End_Date"], "%m/%d/%Y")
+                    })
+                if leave_records:
+                    print(f"Inserting {len(leave_records)} leave records")
+                    await async_db.leave.insert_many(leave_records)
+                else:
+                    print("No leave records to insert")
+            except Exception as e:
+                print(f"Error processing leave data for Employee {emp_id}: {e}")
 
-        # Onboarding data
-        onboarding_record = {
-            "Employee_ID": emp_id,
-            "Joining_Date": data["Onboarding"]["Joining_Date"],
-            "Onboarding_Feedback": data["Onboarding"]["Onboarding_Feedback"],
-            "Mentor_Assigned": data["Onboarding"]["Mentor_Assigned"],
-            "Initial_Training_Completed": data["Onboarding"]["Initial_Training_Completed"]
-        }
-        await async_db.onboarding.insert_one(onboarding_record)
+            try:
+                # Onboarding data
+                onboarding_record = {
+                    "Employee_ID": emp_id,
+                    "Joining_Date": data["Onboarding"]["Joining_Date"],
+                    "Onboarding_Feedback": data["Onboarding"]["Onboarding_Feedback"],
+                    "Mentor_Assigned": data["Onboarding"]["Mentor_Assigned"],
+                    "Initial_Training_Completed": data["Onboarding"]["Initial_Training_Completed"]
+                }
+                print("Inserting onboarding record")
+                await async_db.onboarding.insert_one(onboarding_record)
+            except Exception as e:
+                print(f"Error processing onboarding data for Employee {emp_id}: {e}")
 
-        # Performance data
-        performance_record = {
-            "Employee_ID": emp_id,
-            "Review_Period": data["Performance"]["Review_Period"],
-            "Performance_Rating": data["Performance"]["Performance_Rating"],
-            "Manager_Feedback": data["Performance"]["Manager_Feedback"],
-            "Promotion_Consideration": data["Performance"]["Promotion_Consideration"]
-        }
-        await async_db.performance.insert_one(performance_record)
+            try:
+                # Performance data
+                if data["Performance"].get("Review_Period"):
+                    performance_record = {
+                        "Employee_ID": emp_id,
+                        "Review_Period": data["Performance"]["Review_Period"],
+                        "Performance_Rating": data["Performance"]["Performance_Rating"],
+                        "Manager_Feedback": data["Performance"]["Manager_Feedback"],
+                        "Promotion_Consideration": data["Performance"]["Promotion_Consideration"]
+                    }
+                    print("Inserting performance record")
+                    await async_db.performance.insert_one(performance_record)
+                else:
+                    print("No performance record to insert")
+            except Exception as e:
+                print(f"Error processing performance data for Employee {emp_id}: {e}")
 
-        # Rewards data
-        reward_records = []
-        for reward in data["Rewards"]:
-            reward_records.append({
-                "Employee_ID": emp_id,
-                "Award_Type": reward["Award_Type"],
-                "Award_Date": datetime.strptime(reward["Award_Date"], "%Y-%m-%d"),
-                "Reward_Points": reward["Reward_Points"]
-            })
-        await async_db.rewards.insert_many(reward_records)
+            try:
+                # Rewards data
+                reward_records = []
+                if "Rewards" in data and data["Rewards"]:
+                    for reward in data["Rewards"]:
+                        reward_records.append({
+                            "Employee_ID": emp_id,
+                            "Award_Type": reward["Award_Type"],
+                            "Award_Date": datetime.strptime(reward["Award_Date"], "%Y-%m-%d"),
+                            "Reward_Points": reward["Reward_Points"]
+                        })
+                    if reward_records:
+                        print(f"Inserting {len(reward_records)} reward records")
+                        await async_db.rewards.insert_many(reward_records)
+                    else:
+                        print("No reward records to insert")
+                else:
+                    print("No rewards data found for employee")
+            except Exception as e:
+                print(f"Error processing rewards data for Employee {emp_id}: {e}")
 
-        # Vibe scores data
-        vibe_records = []
-        for date, score in data["Vibe_Scores"].items():
-            vibe_records.append({
-                "Employee_ID": emp_id,
-                "Response_Date": datetime.strptime(date, "%Y-%m-%d"),
-                "Vibe_Score": score
-            })
-        await async_db.vibemeter.insert_many(vibe_records)
+            try:
+                # Vibe scores data
+                vibe_records = []
+                if data["Vibe_Scores"]:
+                    for date, score in data["Vibe_Scores"].items():
+                        vibe_records.append({
+                            "Employee_ID": emp_id,
+                            "Response_Date": datetime.strptime(date, "%Y-%m-%d"),
+                            "Vibe_Score": score
+                        })
+                    if vibe_records:
+                        print(f"Inserting {len(vibe_records)} vibe records")
+                        await async_db.vibemeter.insert_many(vibe_records)
+                    else:
+                        print("No vibe records to insert")
+                else:
+                    print("No vibe scores data found for employee")
+            except Exception as e:
+                print(f"Error processing vibe scores data for Employee {emp_id}: {e}")
+
+            print(f"Completed processing for Employee ID: {emp_id}\n")
+
+        except Exception as e:
+            print(f"Error processing Employee {emp_id}, skipping to next employee: {e}")
+            continue
         
         
 async def main():
@@ -243,11 +296,9 @@ async def main():
     if not hr_user:
         print("HR user not found!")
         return
-    
-    
 
     # Generate and save data
-    dataset = generate_dummy_data(2)
+    dataset = generate_dummy_data(100)
     await save_to_mongodb(dataset, hr_user)
     print("Data successfully saved to MongoDB!")
 
