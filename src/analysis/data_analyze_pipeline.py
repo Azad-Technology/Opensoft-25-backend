@@ -866,4 +866,4 @@ async def analyzed_profile():
 
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(analyzed_profile())
+    print(asyncio.run(analyzed_profile()))

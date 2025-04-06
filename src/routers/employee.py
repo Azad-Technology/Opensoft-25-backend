@@ -22,7 +22,7 @@ async_db = get_async_database()
 logger = setup_logger("src/routers/employee.py")
 
 @router.get("/dashboard")
-async def get_employee_summary(current_user: dict = Depends(get_current_user)):
+async def get_employee_dashboard(current_user: dict = Depends(get_current_user)):
     try:
         employee_id = current_user["employee_id"]
         logger.info(f"Fetching dashboard data for employee ID: {employee_id}")

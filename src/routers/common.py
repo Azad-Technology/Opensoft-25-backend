@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, List, Any, Optional
 from src.models.dataset import ScheduleEntry
-from utils.analysis import MOCK_DATA, get_vibe
+from utils.analysis import MOCK_DATA, convert_to_ist, get_vibe
 from utils.app_logger import setup_logger
 from utils.auth import get_current_user
 from utils.config import get_async_database
@@ -145,6 +145,7 @@ async def get_schedules(date: date, current_user: dict = Depends(get_current_use
         schedules = await cursor.to_list(length=None)
         for schedule in schedules:
             schedule.pop("_id")
+            schedule["date"] = convert_to_ist(schedule["date"]).date()
 
         if not schedules:
             schedules = []

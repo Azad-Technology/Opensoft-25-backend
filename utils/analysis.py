@@ -41,12 +41,17 @@ def process_doc(doc):
         
 def convert_to_ist(utc_dt):
     """Helper function to convert UTC datetime to IST"""
-    if not utc_dt:
+    try:
+        if not utc_dt:
+            return None
+        # Ensure datetime is UTC
+        if not utc_dt.tzinfo:
+            utc_dt = utc_dt.replace(tzinfo=timezone.utc)
+        ist_tz = pytz.timezone('Asia/Kolkata')
+        return utc_dt.astimezone(ist_tz)
+    except Exception as e:
+        print(f"Error converting to IST: {e}")
         return None
-    if not utc_dt.tzinfo:
-        utc_dt = utc_dt.replace(tzinfo=timezone.utc)
-    ist_tz = pytz.timezone('Asia/Kolkata')
-    return utc_dt.astimezone(ist_tz)
     
 def get_project_details():
     projects = [
