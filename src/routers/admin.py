@@ -738,12 +738,6 @@ async def get_all_tickets(
         skip = (page - 1) * page_size
         total_tickets = await async_db["tickets"].count_documents({})
         
-        if total_tickets == 0:
-            raise HTTPException(
-                status_code=404,
-                detail="No tickets found in the system"
-            )
-        
         total_pages = (total_tickets + page_size - 1) // page_size
 
         cursor = async_db["tickets"].find({}).skip(skip).limit(page_size)

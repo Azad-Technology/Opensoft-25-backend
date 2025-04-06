@@ -9,58 +9,66 @@ from faker import Faker
 async_db = get_async_database()
 fake = Faker()
 
+def generate_sequential_emp_id(index):
+    """Generate sequential employee IDs"""
+    return f"EMP{str(index+1).zfill(4)}"
+
+# Helper function to convert date strings to datetime
+def convert_date(date_str):
+    try:
+        if isinstance(date_str, str):
+            # Add more date formats, putting the expected format first
+            formats = ['%d-%m-%Y', '%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y']
+            for fmt in formats:
+                try:
+                    return datetime.strptime(date_str, fmt)
+                except ValueError:
+                    continue
+        elif isinstance(date_str, datetime):
+            return date_str
+    except Exception as e:
+        print(f"Error converting date: {date_str}, Error: {e}")
+    return None
+
 async def preprocess_and_upload_data():
     
-    # Helper function to convert date strings to datetime
-    def convert_date(date_str):
-        try:
-            if isinstance(date_str, str):
-                # Add more date formats, putting the expected format first
-                formats = ['%d-%m-%Y', '%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y']
-                for fmt in formats:
-                    try:
-                        return datetime.strptime(date_str, fmt)
-                    except ValueError:
-                        continue
-            elif isinstance(date_str, datetime):
-                return date_str
-        except Exception as e:
-            print(f"Error converting date: {date_str}, Error: {e}")
-        return None
-
+    # for emp in range(0,500):
+    #     emp_id = generate_sequential_emp_id(emp)
+    #     await add_employee_to_users(emp_id, {"employee_id": "HR00001"})
+        
     # Load and preprocess vibemeter data
-    vibemeter_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/vibemeter_dataset.csv')
+    vibemeter_df = pd.read_csv('src/analysis/data/vibemeter_dataset.csv')
     vibemeter_df['Response_Date'] = vibemeter_df['Response_Date'].apply(convert_date)
     vibemeter_data = vibemeter_df.to_dict('records')
 
     # Load and preprocess rewards data
-    rewards_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/rewards_dataset.csv')
+    rewards_df = pd.read_csv('src/analysis/data/rewards_dataset.csv')
     rewards_df['Award_Date'] = rewards_df['Award_Date'].apply(convert_date)
     rewards_df['Reward_Points'] = rewards_df['Reward_Points'].astype(float)
     rewards_data = rewards_df.to_dict('records')
 
     # Load and preprocess performance data
-    performance_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/performance_dataset.csv')
+    performance_df = pd.read_csv('src/analysis/data/performance_dataset.csv')
     performance_df['Performance_Rating'] = performance_df['Performance_Rating'].astype(float)
     performance_df['Promotion_Consideration'] = performance_df['Promotion_Consideration'].astype(bool)
     performance_data = performance_df.to_dict('records')
 
     # Load and preprocess onboarding data
-    onboarding_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/onboarding_dataset.csv')
+    onboarding_df = pd.read_csv('src/analysis/data/onboarding_dataset.csv')
     onboarding_df['Joining_Date'] = onboarding_df['Joining_Date'].apply(convert_date)
     onboarding_df['Mentor_Assigned'] = onboarding_df['Mentor_Assigned'].astype(bool)
     onboarding_df['Initial_Training_Completed'] = onboarding_df['Initial_Training_Completed'].astype(bool)
     onboarding_data = onboarding_df.to_dict('records')
 
     # Load and preprocess leave data
-    leave_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/leave_dataset.csv')
+    leave_df = pd.read_csv('src/analysis/data/leave_dataset.csv')
     leave_df['Leave_Start_Date'] = leave_df['Leave_Start_Date'].apply(convert_date)
     leave_df['Leave_End_Date'] = leave_df['Leave_End_Date'].apply(convert_date)
     leave_df['Leave_Days'] = leave_df['Leave_Days'].astype(float)
     leave_data = leave_df.to_dict('records')
 
     # Load and preprocess activity data
-    activity_df = pd.read_csv('Opensoft-25-backend/src/analysis/data/activity_tracker_dataset.csv')
+    activity_df = pd.read_csv('src/analysis/data/activity_tracker_dataset.csv')
     activity_df['Date'] = activity_df['Date'].apply(convert_date)
     activity_df['Teams_Messages_Sent'] = activity_df['Teams_Messages_Sent'].astype(float)
     activity_df['Emails_Sent'] = activity_df['Emails_Sent'].astype(float)
@@ -285,12 +293,14 @@ async def save_to_mongodb(dataset, hr_user):
 async def main():
     # Get HR user from database
     
-    collections = ['users', 'activity', 'leave', 'onboarding', 'performance', 'rewards', 'vibemeter']
+    collections = ['activity', 'leave', 'onboarding', 'performance', 'rewards', 'vibemeter']
     for collection in collections:
         await async_db[collection].delete_many({})
         
     # Create HR users
-    await create_hr_users()
+    # await create_hr_users()
+    
+    await preprocess_and_upload_data()
     
     hr_user = await async_db.users.find_one({"employee_id": "HR00001"})
     if not hr_user:
@@ -298,7 +308,7 @@ async def main():
         return
 
     # Generate and save data
-    dataset = generate_dummy_data(100)
+    dataset = generate_dummy_data(10)
     await save_to_mongodb(dataset, hr_user)
     print("Data successfully saved to MongoDB!")
 

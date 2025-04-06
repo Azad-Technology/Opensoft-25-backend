@@ -309,101 +309,49 @@ def generate_dummy_data(num_entries=20):
     
     # Define different behavior combinations for different employee types
     employee_types = [
-        # Original High Performers
-        ["Highly_Engaged_Employee", "High_Performance_Contributor", "Strong_Team_Collaborator"],
-        ["High_Performance_Contributor", "Innovative_Problem_Solver", "Job_Satisfaction_Champion"],
-        ["Innovative_Problem_Solver", "Strong_Team_Collaborator", "Highly_Engaged_Employee"],
+        # Very Sad Scenarios (5)
+        # 1. Burnout and Overworked
+        ["Work_Overload_Stress", "Lack_of_Work_Life_Balance", "Recognition_Gap"],
         
-        # Additional High Performers
-        ["High_Performance_Contributor", "Job_Satisfaction_Champion", "Strong_Team_Collaborator"],
-        ["Highly_Engaged_Employee", "Innovative_Problem_Solver", "Strong_Team_Collaborator"],
-        ["Job_Satisfaction_Champion", "High_Performance_Contributor", "Innovative_Problem_Solver"],
+        # 2. Completely Disengaged
+        ["Lack_of_Engagement", "Feeling_Undervalued", "Career_Concerns"],
         
-        # Original Mixed Performance
-        ["Highly_Engaged_Employee", "Career_Concerns", "Strong_Team_Collaborator"],
-        ["High_Performance_Contributor", "Work_Overload_Stress", "Strong_Team_Collaborator"],
-        ["Innovative_Problem_Solver", "Lack_of_Work_Life_Balance", "Job_Satisfaction_Champion"],
+        # 3. Career Stagnation
+        ["Career_Concerns", "Recognition_Gap", "Lack_of_Engagement"],
         
-        # Additional Mixed Performance
-        ["Strong_Team_Collaborator", "Recognition_Gap", "High_Performance_Contributor"],
-        ["Innovative_Problem_Solver", "Feeling_Undervalued", "Highly_Engaged_Employee"],
-        ["Job_Satisfaction_Champion", "Career_Concerns", "High_Performance_Contributor"],
+        # 4. Work-Life Balance Issues
+        ["Lack_of_Work_Life_Balance", "Work_Overload_Stress", "Feeling_Undervalued"],
         
-        # Original Struggling Employees
-        ["Work_Overload_Stress", "Lack_of_Work_Life_Balance", "Career_Concerns"],
-        ["Lack_of_Engagement", "Feeling_Undervalued", "Recognition_Gap"],
-        ["Career_Concerns", "Recognition_Gap", "Feeling_Undervalued"],
+        # 5. Recognition and Value Issues
+        ["Feeling_Undervalued", "Recognition_Gap", "Career_Concerns"],
         
-        # Additional Struggling Employees
-        ["Lack_of_Engagement", "Work_Overload_Stress", "Recognition_Gap"],
-        ["Feeling_Undervalued", "Lack_of_Work_Life_Balance", "Career_Concerns"],
-        ["Recognition_Gap", "Work_Overload_Stress", "Lack_of_Engagement"],
-        
-        # Original Growth Potential
+        # Okay/Neutral Scenarios (2)
+        # 6. Mixed Performance with Growth Potential
         ["Career_Concerns", "Strong_Team_Collaborator", "Innovative_Problem_Solver"],
-        ["Feeling_Undervalued", "High_Performance_Contributor", "Recognition_Gap"],
-        ["Work_Overload_Stress", "Highly_Engaged_Employee", "Lack_of_Work_Life_Balance"],
         
-        # Additional Growth Potential
-        ["Recognition_Gap", "Highly_Engaged_Employee", "Strong_Team_Collaborator"],
-        ["Career_Concerns", "High_Performance_Contributor", "Job_Satisfaction_Champion"],
-        ["Feeling_Undervalued", "Innovative_Problem_Solver", "Strong_Team_Collaborator"],
+        # 7. Stable but Not Exceptional
+        ["Strong_Team_Collaborator", "Recognition_Gap", "Job_Satisfaction_Champion"],
         
-        # Original New Joiners
-        ["Highly_Engaged_Employee", "Job_Satisfaction_Champion", "Career_Concerns"],
-        ["Strong_Team_Collaborator", "Innovative_Problem_Solver", "Work_Overload_Stress"],
+        # Very Happy Scenarios (3)
+        # 8. High Performer with Great Work Environment
+        ["High_Performance_Contributor", "Job_Satisfaction_Champion", "Strong_Team_Collaborator"],
         
-        # Additional New Joiners
-        ["High_Performance_Contributor", "Career_Concerns", "Strong_Team_Collaborator"],
-        ["Innovative_Problem_Solver", "Recognition_Gap", "Highly_Engaged_Employee"],
-        ["Job_Satisfaction_Champion", "Work_Overload_Stress", "Strong_Team_Collaborator"],
+        # 9. Engaged and Innovative Leader
+        ["Highly_Engaged_Employee", "Innovative_Problem_Solver", "High_Performance_Contributor"],
         
-        # Original Senior Employees
-        ["High_Performance_Contributor", "Work_Overload_Stress", "Job_Satisfaction_Champion"],
-        ["Highly_Engaged_Employee", "Strong_Team_Collaborator", "Lack_of_Work_Life_Balance"],
-        
-        # Additional Senior Employees
-        ["Strong_Team_Collaborator", "High_Performance_Contributor", "Work_Overload_Stress"],
-        ["Innovative_Problem_Solver", "Job_Satisfaction_Champion", "Recognition_Gap"],
-        ["Highly_Engaged_Employee", "Work_Overload_Stress", "Strong_Team_Collaborator"],
-        
-        # Original Mixed Scenarios
-        ["Recognition_Gap", "Innovative_Problem_Solver", "Strong_Team_Collaborator"],
-        ["Lack_of_Work_Life_Balance", "High_Performance_Contributor", "Career_Concerns"],
-        ["Feeling_Undervalued", "Highly_Engaged_Employee", "Work_Overload_Stress"],
-        ["Career_Concerns", "Job_Satisfaction_Champion", "Recognition_Gap"],
-        
-        # Additional Mixed Scenarios
-        ["Work_Overload_Stress", "Strong_Team_Collaborator", "High_Performance_Contributor"],
-        ["Recognition_Gap", "Highly_Engaged_Employee", "Lack_of_Work_Life_Balance"],
-        ["Career_Concerns", "Innovative_Problem_Solver", "Feeling_Undervalued"],
-        ["Lack_of_Engagement", "Job_Satisfaction_Champion", "Strong_Team_Collaborator"],
-        
-        # Burnout Risk Scenarios
-        ["Work_Overload_Stress", "High_Performance_Contributor", "Lack_of_Work_Life_Balance"],
-        ["Highly_Engaged_Employee", "Work_Overload_Stress", "Recognition_Gap"],
-        ["Strong_Team_Collaborator", "Work_Overload_Stress", "Career_Concerns"],
-        
-        # Retention Risk Scenarios
-        ["Career_Concerns", "Recognition_Gap", "High_Performance_Contributor"],
-        ["Feeling_Undervalued", "Lack_of_Work_Life_Balance", "Strong_Team_Collaborator"],
-        ["Recognition_Gap", "Work_Overload_Stress", "Highly_Engaged_Employee"],
-        
-        # Leadership Potential
-        ["High_Performance_Contributor", "Strong_Team_Collaborator", "Job_Satisfaction_Champion"],
-        ["Highly_Engaged_Employee", "Innovative_Problem_Solver", "Strong_Team_Collaborator"],
-        ["Strong_Team_Collaborator", "Job_Satisfaction_Champion", "High_Performance_Contributor"]
+        # 10. Complete Job Satisfaction
+        ["Job_Satisfaction_Champion", "Highly_Engaged_Employee", "Strong_Team_Collaborator"]
     ]
 
     # Shuffle the employee types list
-    random.shuffle(employee_types)
+    # random.shuffle(employee_types)
 
     for i in range(num_entries):
         behaviors = employee_types[i % len(employee_types)]  # Cycle through the shuffled behavior combinations
         # Shuffle the behaviors for this specific employee
         random.shuffle(behaviors)
         
-        emp_id = generate_sequential_emp_id(i)
+        emp_id = generate_sequential_emp_id(i+500)
         onboarding_exp = generate_onboarding_data()
         behavior_distribution = distribute_behavior_days(
             (datetime.now() - onboarding_exp["Joining_Date"]).days, 

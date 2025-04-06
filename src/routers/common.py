@@ -143,12 +143,13 @@ async def get_schedules(date: date, current_user: dict = Depends(get_current_use
 
         cursor = async_db["schedules"].find(query)
         schedules = await cursor.to_list(length=None)
+        
+        if not schedules:
+            schedules = []
+            
         for schedule in schedules:
             schedule.pop("_id")
             schedule["date"] = convert_to_ist(schedule["date"]).date()
-
-        if not schedules:
-            schedules = []
             
         return {
             "employee_id": employee_id,

@@ -246,10 +246,7 @@ async def get_employee_tickets(current_user: dict = Depends(get_current_user)):
         tickets = await cursor.to_list(length=None)
 
         if not tickets:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No tickets found for employee {employee_id}"
-            )
+            tickets = []
         
         for ticket in tickets:
             ticket.pop("_id")
