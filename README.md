@@ -1,18 +1,25 @@
 # VibeCatcher: AI-Powered Employee Well-being Platform
 
-<p align="center">
-  <img src="assets/vibecatcher_logo.png" alt="VibeCatcher Logo" width="200"/>
-</p>
-
 ## 🎯 Overview
 
 VibeCatcher transforms traditional employee mood tracking into an intelligent support system that proactively identifies and addresses well-being concerns. Using advanced AI and data analytics, it provides personalized support while generating actionable insights for organizational leadership.
 
-[Insert System Overview Infographic]
+<!-- First row of images -->
+<p align="center">
+  <img src="assets/image (3).png" width="48%" />
+  &nbsp; &nbsp;
+  <img src="assets/image (4).png" width="48%" />
+</p>
 
-## 🏗️ System Architecture
+<!-- Adding some vertical space between rows -->
+<br>
 
-[Insert Technical Architecture Infographic]
+<!-- Second row of images -->
+<p align="center">
+  <img src="assets/image (1).png" width="48%" />
+  &nbsp; &nbsp;
+  <img src="assets/image (2).png" width="48%" />
+</p>
 
 ## 🚀 Quick Setup
 
@@ -140,15 +147,21 @@ docker compose logs -f
 ## 🔄 Core Components
 
 ### Data Analysis Pipeline
-[Insert Data Pipeline Infographic]
+<p align="center">
+  <img src="assets/image (5).png" width="100%" />
+</p>
 
 ### Chatbot Framework
-[Insert Chatbot Architecture Infographic]
 
+<p align="center">
+  <img src="assets/image (6).png" width="100%" />
+</p>
 
-### Post-Chat Analysis
-[Insert Analysis System Infographic]
+### Post Chat Analysis & Mentors
 
+<p align="center">
+  <img src="assets/image (7).png" width="100%" />
+</p>
 
 ## 🔐 Security & Monitoring
 
