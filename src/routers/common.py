@@ -1,15 +1,15 @@
 import random
 import uuid
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from typing import Dict, List, Any, Optional
 from src.models.dataset import ScheduleEntry
 from utils.analysis import MOCK_DATA, convert_to_ist, get_vibe
 from utils.app_logger import setup_logger
-from utils.auth import get_current_user
+from utils.auth import get_current_user, get_password_hash, verify_password
 from utils.config import get_async_database
 from fastapi.responses import JSONResponse
 import pandas as pd
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from collections import defaultdict
 import numpy as np
 import asyncio
@@ -209,4 +209,62 @@ async def delete_schedule(current_user: dict = Depends(get_current_user), schedu
         raise HTTPException(
             status_code=500,
             detail=f"An error occurred while deleting the schedule entry: {str(e)}"
+        )
+        
+@router.post("/reset_password")
+async def reset_password(
+    current_user: dict = Depends(get_current_user),
+    old_password: str = Body(...),
+    new_password: str = Body(...),
+    confirm_password: str = Body(...)
+):
+    """
+    Reset user password after verifying old password
+    """
+    try:
+        # Verify new password matches confirmation
+        if new_password != confirm_password:
+            raise HTTPException(
+                status_code=400,
+                detail="New password and confirmation do not match"
+            )
+
+        # Verify old password is correct
+        user = await async_db.users.find_one({"employee_id": current_user["employee_id"]})
+        if not user or not verify_password(old_password, user["password"]):
+            raise HTTPException(
+                status_code=401,
+                detail="Incorrect old password"
+            )
+
+        # Verify new password is different from old password
+        if verify_password(new_password, user["password"]):
+            raise HTTPException(
+                status_code=400,
+                detail="New password must be different from old password"
+            )
+
+        # Update password in database
+        hashed_password = get_password_hash(new_password)
+        await async_db.users.update_one(
+            {"employee_id": current_user["employee_id"]},
+            {"$set": {
+                "password": hashed_password,
+                "updated_at": datetime.now(timezone.utc)
+            }}
+        )
+
+        return JSONResponse(content={
+            "status": "success",
+            "message": "Password updated successfully",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Password reset error for {current_user['employee_id']}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="An error occurred while resetting password"
         )

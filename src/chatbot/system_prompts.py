@@ -258,23 +258,22 @@ FINAL_CHAT_ANALYSIS_SYSTEM_PROMPT = """You are an expert HR analysis AI from Del
 FINAL_CHAT_ANALYSIS_SYSTEM_PROMPT += MENTOR_NAMES_LIST_STR
 
 FINAL_CHAT_ANALYSIS_SYSTEM_PROMPT += """
-
 *Well-being Analysis Components & Scoring (Higher Score = More Concern/Need for Attention):*
 
-*A. Emotional State (Weight: 40%):* Assess overall emotional tone, negativity, and volatility.
-    - *Score:* 0-40 (Higher score indicates more negative/volatile/distressed emotional state)
+*A. Emotional State:* Assess overall emotional tone, negativity, and volatility.
+    - *Score:* 0-30 (Higher score indicates more negative/volatile/distressed emotional state)
     - *Summary:* Brief summary of the observed emotional patterns (e.g., "Consistently expressed frustration and anxiety, moderate volatility noted.") - Max 2 lines
 
-*B. Psychological Indicators (Weight: 30%):* Assess presence of risk language vs. resilience language, and cognitive patterns.
+*B. Psychological Indicators:* Assess presence of risk language vs. resilience language, and cognitive patterns.
     - *Score:* 0-30 (Higher score indicates more risk indicators, fewer resilience indicators, potential cognitive distortions)
     - *Summary:* Brief summary of key psychological language markers (e.g., "Frequent use of 'overwhelmed' and 'stuck', some resilience language like 'try' emerged later. Observed potential all-or-nothing thinking.") - Max 2 lines
 
-*C. Conversation Progression (Weight: 20%):* Evaluate if the conversation showed improvement or resolution discussion.
-    - *Score:* 0-20 (Higher score indicates lack of positive sentiment trend or lack of resolution discussion)
+*C. Conversation Progression:* Evaluate if the conversation showed improvement or resolution discussion.
+    - *Score:* 0-30 (Higher score indicates lack of positive sentiment trend or lack of resolution discussion)
     - *Summary:* Brief summary of how the conversation evolved emotionally and in terms of problem-solving (e.g., "Sentiment remained largely negative with limited discussion of potential solutions.") - Max 2 lines
 
-*D. Behavioral/Situational Factors (Weight: 10%):* Assess reported work habits, social interactions, and self-care based on conversation.
-    - *Score:* 0-10 (Higher score indicates more signals of negative patterns like overload, isolation, lack of self-care)
+*D. Behavioral/Situational Factors:* Assess reported work habits, social interactions, and self-care based on conversation.
+    - *Score:* 0-30 (Higher score indicates more signals of negative patterns like overload, isolation, lack of self-care)
     - *Summary:* Brief summary of relevant behavioral or situational factors mentioned (e.g., "Mentioned working late frequently and recent team conflict.") - Max 2 lines
 
 *Risk Assessment Scale (1-5):*
@@ -295,7 +294,7 @@ FINAL_CHAT_ANALYSIS_SYSTEM_PROMPT += """
     "composite_score": 0-100, // Weighted sum; 0=Low Concern, 100=High Concern/Need Attention.
     "component_breakdown": {
       "emotional_state": {
-        "score": 0-40, // Higher = More Concern
+        "score": 0-30, // Higher = More Concern
         "summary": "Summary of emotional patterns."
       },
       "psychological_indicators": {
@@ -303,11 +302,11 @@ FINAL_CHAT_ANALYSIS_SYSTEM_PROMPT += """
         "summary": "Summary of psychological language markers."
       },
       "conversation_progression": {
-        "score": 0-20, // Higher = More Concern (Less Improvement/Resolution)
+        "score": 0-30, // Higher = More Concern (Less Improvement/Resolution)
         "summary": "Summary of conversation evolution."
       },
       "behavioral_situational_factors": {
-        "score": 0-10, // Higher = More Concern
+        "score": 0-30, // Higher = More Concern
         "summary": "Summary of relevant behavioral/situational factors."
       }
     }
