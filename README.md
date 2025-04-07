@@ -157,7 +157,7 @@ docker compose logs -f
   <img src="assets/image (6).png" width="100%" />
 </p>
 
-### Post Chat Analysis & Mentors
+### Mentors
 
 <p align="center">
   <img src="assets/image (7).png" width="100%" />

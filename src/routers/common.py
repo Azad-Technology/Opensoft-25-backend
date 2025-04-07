@@ -149,7 +149,7 @@ async def get_schedules(date: date, current_user: dict = Depends(get_current_use
             
         for schedule in schedules:
             schedule.pop("_id")
-            schedule["date"] = convert_to_ist(schedule["date"])
+            schedule["date"] = schedule["date"]
             
         return {
             "employee_id": employee_id,
