@@ -1,7 +1,7 @@
 [project]
-name = "opensoft-25-backend"
+name = "VibeCatcher-backend"
 version = "0.1.0"
-description = "OpenSoft Backend"
+description = "VibeCatcher Backend"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

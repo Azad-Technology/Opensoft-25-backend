@@ -618,7 +618,7 @@ wheels = [
 ]
 
 [[package]]
-name = "opensoft-25-backend"
+name = "VibeCatcher-Backend"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

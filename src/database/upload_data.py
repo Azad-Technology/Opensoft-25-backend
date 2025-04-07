@@ -1,6 +1,6 @@
 import pandas as pd
 from datetime import UTC, datetime
-from src.analysis.dummy_data import generate_dummy_data
+from src.analysis.generate_data import generate_data
 from utils.auth import get_password_hash
 from utils.config import get_async_database
 import asyncio
@@ -308,7 +308,7 @@ async def main():
         return
 
     # Generate and save data
-    dataset = generate_dummy_data(10)
+    dataset = generate_data(10)
     await save_to_mongodb(dataset, hr_user)
     print("Data successfully saved to MongoDB!")
 

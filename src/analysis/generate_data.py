@@ -304,7 +304,7 @@ def calculate_vibe_scores(joining_date, behavior_distribution):
     
     return vibe_scores
 
-def generate_dummy_data(num_entries=20):
+def generate_data(num_entries=20):
     dataset = []
     
     # Define different behavior combinations for different employee types
@@ -391,6 +391,6 @@ def json_serial(obj):
 if __name__ == "__main__":
     file_path = os.path.expanduser("output.json")  # Saves to Desktop
     with open(file_path, "w") as file:
-        json.dump(generate_dummy_data(20), file, indent=4, default=json_serial)
+        json.dump(generate_data(20), file, indent=4, default=json_serial)
 
     print(f"JSON file successfully created at {file_path}")
