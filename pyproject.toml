@@ -1,7 +1,7 @@
 [project]
-name = "VibeCatcher-backend"
+name = "Mindflix-backend"
 version = "0.1.0"
-description = "VibeCatcher Backend"
+description = "Mindflix Backend"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

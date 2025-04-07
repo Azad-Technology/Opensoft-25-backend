@@ -1,8 +1,8 @@
-# VibeCatcher: AI-Powered Employee Well-being Platform
+# Mindflix: AI-Powered Employee Well-being Platform
 
 ## 🎯 Overview
 
-VibeCatcher transforms traditional employee mood tracking into an intelligent support system that proactively identifies and addresses well-being concerns. Using advanced AI and data analytics, it provides personalized support while generating actionable insights for organizational leadership.
+Mindflix transforms traditional employee mood tracking into an intelligent support system that proactively identifies and addresses well-being concerns. Using advanced AI and data analytics, it provides personalized support while generating actionable insights for organizational leadership.
 
 ## 🚀 Quick Setup
 
