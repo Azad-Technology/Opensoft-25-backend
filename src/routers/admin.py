@@ -532,7 +532,7 @@ async def get_all_employees(current_user: dict = Depends(get_current_user)):
         mood_distribution = {
             "excited": 0,
             "happy": 0,
-            "ok": 0,
+            "okay": 0,
             "sad": 0,
             "frustrated": 0
         }
@@ -556,7 +556,7 @@ async def get_all_employees(current_user: dict = Depends(get_current_user)):
                 employee_id = user.get("employee_id")
                 if not employee_id:
                     continue
-
+                    
                 # Get info with safe defaults
                 vibe_info = vibe_map.get(employee_id, {})
                 intent_info = intent_map.get(employee_id, {})
