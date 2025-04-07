@@ -7,6 +7,7 @@ from src.chatbot.chat_bot import (
     chat_complete,
     get_chat_history
 )
+from utils.analysis import convert_to_ist
 from utils.auth import get_current_user
 from utils.config import get_async_database
 from utils.app_logger import setup_logger
@@ -83,6 +84,9 @@ async def get_session_history(
             )
             
         chat_history = await get_chat_history(session_id)
+        
+        for message in chat_history:
+            message["timestamp"] = convert_to_ist(message["timestamp"])
 
         return {
             "session_id": session_id,
