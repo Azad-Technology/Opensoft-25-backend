@@ -527,7 +527,7 @@ async def is_chat_required(employee_id: str) -> bool:
 
         # Check predicted score and emotions
         predicted_score = latest_analysis.get("Predicted", 0)
-        actual_emotion = latest_vibe.get("Vibe_Score", 0)
+        actual_emotion = latest_vibe.get("Vibe_Score", 5)
 
         # If predicted score is low or emotions indicate distress
         if predicted_score <= 2.5:
