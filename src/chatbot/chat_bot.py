@@ -502,6 +502,11 @@ async def is_chat_required(employee_id: str) -> bool:
             {"Employee_ID": employee_id},
             sort=[("timestamp", -1)]
         )
+        
+        latest_vibe = await async_db["vibemeter"].find_one(
+            {"employee_id": employee_id},
+            sort=[("timestamp", -1)]
+        )
 
         if not latest_analysis:
             logger.info(f"No analyzed profile found for {employee_id}. Chat required.")
@@ -522,14 +527,14 @@ async def is_chat_required(employee_id: str) -> bool:
 
         # Check predicted score and emotions
         predicted_score = latest_analysis.get("Predicted", 0)
-        actual_emotion = latest_analysis.get("Actual_Emotion", "unknown")
+        actual_emotion = latest_vibe.get("Vibe_Score", 0)
 
         # If predicted score is low or emotions indicate distress
         if predicted_score <= 2.5:
             logger.info(f"Low predicted score ({predicted_score}) for {employee_id}. Chat required.")
             return True
 
-        if actual_emotion in ["Sad", "Frustrated"]:
+        if actual_emotion  <= 2:
             logger.info(f"Concerning emotion state ({actual_emotion}) for {employee_id}. Chat required.")
             return True
 
