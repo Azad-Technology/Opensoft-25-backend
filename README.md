@@ -4,23 +4,6 @@
 
 VibeCatcher transforms traditional employee mood tracking into an intelligent support system that proactively identifies and addresses well-being concerns. Using advanced AI and data analytics, it provides personalized support while generating actionable insights for organizational leadership.
 
-<!-- First row of images -->
-<p align="center">
-  <img src="assets/image (3).png" width="48%" />
-  &nbsp; &nbsp;
-  <img src="assets/image (4).png" width="48%" />
-</p>
-
-<!-- Adding some vertical space between rows -->
-<br>
-
-<!-- Second row of images -->
-<p align="center">
-  <img src="assets/image (1).png" width="48%" />
-  &nbsp; &nbsp;
-  <img src="assets/image (2).png" width="48%" />
-</p>
-
 ## 🚀 Quick Setup
 
 ### Prerequisites
