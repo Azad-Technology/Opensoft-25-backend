@@ -15,36 +15,14 @@ Mindflix transforms traditional employee mood tracking into an intelligent suppo
 
 ### Environment Setup
 
-Create `.env` file:
+Create `.env` file from .env.example
 
-```env
-# MongoDB Configuration
-MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/
-MONGODB_NAME=conversational_bot
-
-# Neo4j Configuration
-NEO4J_URI=neo4j+s://<id>.databases.neo4j.io
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=your_password
-
-# LLM API Keys
-GROQ_API_KEY1=your_key1
-GROQ_API_KEY2=your_key2
-GROQ_API_KEY3=your_key3
-
-GOOGLE_API_KEY1=your_key1
-GOOGLE_API_KEY2=your_key2
-GOOGLE_API_KEY3=your_key3
-
-# Security
-ENC_SECRET_KEY=your_secret_key # For password encryption
-
-# LangSmith Tracing
-LANGSMITH_TRACING=true
-LANGSMITH_ENDPOINT="https://api.smith.langchain.com"
-LANGSMITH_API_KEY=your_langsmith_key
-LANGSMITH_PROJECT=your_project_name
+### Cloning Steps
+```bash
+git clone <url>
+cd Backend
 ```
+
 
 ### Installation Options
 
